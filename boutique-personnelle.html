@@ -168,6 +168,7 @@ h2,h3{color:var(--gold)}
         <input id="pPhoto" type="file" accept="image/*" class="hide">
         <input id="pCam" type="file" accept="image/*" capture="environment" class="hide">
         <img id="apercu" class="hide" style="width:120px;border-radius:10px">
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pPublie" checked style="width:auto;margin:0"> Publier sur la boutique (visible par les clients)</label>
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pDispo" checked style="width:auto;margin:0"> Disponible à la vente</label>
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pVedette" style="width:auto;margin:0"> Mettre en avant ⭐</label>
         <div style="display:flex;gap:8px;margin-top:10px">
@@ -263,7 +264,13 @@ const isAdmin = u => !!(u && u.email && u.email.toLowerCase() === ADMIN_EMAIL.to
 
 // ===== Navigation (menu à gauche) =====
 const VUES = ["vAcc","vPan","vCon","vApr","vAdm","vGest"];
-function montrer(v){ if (v==="vAdm" && auth && isAdmin(auth.currentUser)) v = "vGest"; VUES.forEach(x => $(x).classList.toggle("hide", x !== v)); fermer(); if (v==="vPan") majPanier(); scrollTo(0,0); }
+let VUE = "vAcc"; history.replaceState({v:"vAcc"}, "");
+function montrer(v, sansPush){ if (!sansPush && v==="vAdm" && auth && isAdmin(auth.currentUser)) v = "vGest";
+  VUES.forEach(x => $(x).classList.toggle("hide", x !== v)); fermer(); if (v==="vPan") majPanier(); scrollTo(0,0);
+  if (!sansPush && v !== VUE) history.pushState({v}, ""); VUE = v; }
+window.addEventListener("popstate", e => montrer((e.state && e.state.v) || "vAcc", true));
+function retour(){ if (VUE==="vAdm" || VUE==="vGest") montrer("vAcc"); else if (history.length > 1 && history.state && VUE!=="vAcc") history.back(); else montrer("vAcc"); }
+VUES.slice(1).forEach(id => { const b = document.createElement("button"); b.className = "sm"; b.style.marginBottom = "10px"; b.textContent = "← Retour"; b.onclick = retour; $(id).prepend(b); });
 function fermer(){ $("menu").classList.remove("open"); $("ov").classList.add("hide"); }
 $("burger").onclick = () => { $("menu").classList.add("open"); $("ov").classList.remove("hide"); };
 $("ov").onclick = fermer;
@@ -327,14 +334,15 @@ $("mSend").onclick = () => {
 // ===== Catalogue =====
 if (db) db.ref("produits").on("value", s => { PRODUITS = s.val() || {}; majCatalogue(); majAdminListe(); },
   e => alerteErreur("Lecture du catalogue refusée : " + e.message));
+const publie = p => p && p.publie !== false;
 const enStock = p => p.disponible !== false && !(p.stock !== "" && p.stock != null && Number(p.stock) <= 0);
 function majCatalogue(){
-  const cats = [...new Set(Object.values(PRODUITS).map(p => p.categorie).filter(Boolean))].sort();
+  const cats = [...new Set(Object.values(PRODUITS).filter(publie).map(p => p.categorie).filter(Boolean))].sort();
   $("cats").innerHTML = `<button class="sm ${CAT===""?"on":""}" data-c="">Tout</button>` + cats.map(c => `<button class="sm ${CAT===c?"on":""}" data-c="${esc(c)}">${esc(c)}</button>`).join("");
   $("cats").querySelectorAll("button").forEach(b => b.onclick = () => { CAT = b.dataset.c; majCatalogue(); });
   $("listeCats").innerHTML = cats.map(c => `<option value="${esc(c)}">`).join("");
   const q = $("recherche").value.trim().toLowerCase();
-  const liste = Object.entries(PRODUITS).filter(([id,p]) => (!CAT || p.categorie===CAT) && (!q || [p.nom,p.description,p.marque].join(" ").toLowerCase().includes(q)));
+  const liste = Object.entries(PRODUITS).filter(([id,p]) => publie(p) && (!CAT || p.categorie===CAT) && (!q || [p.nom,p.description,p.marque].join(" ").toLowerCase().includes(q)));
   liste.sort((a,b) => (b[1].vedette?1:0)-(a[1].vedette?1:0) || (b[1].t||0)-(a[1].t||0));
   $("prods").innerHTML = liste.map(([id,p]) => {
     const promo = p.promo > 0 && p.promo < p.prix;
@@ -359,7 +367,7 @@ function majNb(){ $("nbPan").textContent = Object.values(PANIER).reduce((s,q)=>s
 function ajouter(id){ PANIER[id] = (PANIER[id]||0)+1; sauverPanier(); }
 function changer(id,d){ PANIER[id] = (PANIER[id]||0)+d; if (PANIER[id]<=0) delete PANIER[id]; sauverPanier(); majPanier(); }
 function majPanier(){
-  const ids = Object.keys(PANIER).filter(id => PRODUITS[id]);
+  const ids = Object.keys(PANIER).filter(id => publie(PRODUITS[id]));
   if (!ids.length){ $("lignes").innerHTML = `<p class="muted">Votre panier est vide.</p>`; $("total").textContent = "0"; majNb(); return; }
   let total = 0;
   $("lignes").innerHTML = ids.map(id => { const p = PRODUITS[id], q = PANIER[id]; total += prixU(p)*q;
@@ -370,7 +378,7 @@ function majPanier(){
   $("total").textContent = fmt(total); majNb();
 }
 $("commander").onclick = () => {
-  const ids = Object.keys(PANIER).filter(id => PRODUITS[id]);
+  const ids = Object.keys(PANIER).filter(id => publie(PRODUITS[id]));
   if (!ids.length) return alert("Votre panier est vide.");
   const nom = $("cNom").value.trim(), tel = $("cTel").value.trim(), adr = $("cAdr").value.trim();
   if (!nom || !tel) return alert("Indiquez votre nom et votre téléphone.");
@@ -398,7 +406,7 @@ document.querySelectorAll("#admBox [data-t]").forEach(b => b.onclick = () => {
   document.querySelectorAll("#admBox [data-t]").forEach(x => x.classList.toggle("on", x === b));
 });
 function afficherEtat(u){ const a = isAdmin(u);
-  if (a && !$("vAdm").classList.contains("hide")) montrer("vGest");
+  if (a && !$("vAdm").classList.contains("hide")) { montrer("vGest", true); history.replaceState({v:"vGest"}, ""); }
   if (!u && !$("vGest").classList.contains("hide")) montrer("vAdm");
   $("loginBox").classList.toggle("hide", !!u); $("verifBox").classList.add("hide"); $("admBox").classList.toggle("hide", !a); $("verifBan").classList.toggle("hide", !(a && !u.emailVerified)); }
 const pasAuth = () => { $("aErr").textContent = "Connexion indisponible : ouvrez l’application depuis son adresse https://."; };
@@ -444,7 +452,7 @@ $("iFichier").onchange = e => { const f = e.target.files[0]; if (!f) return; con
 $("iVerif").onclick = () => { const t = lireArticles($("iTexte").value); IMPORT = t.filter(a => a.nom && a.prix > 0); $("iGo").disabled = !IMPORT.length;
   $("iMsg").textContent = IMPORT.length ? `${IMPORT.length} article(s) prêt(s)` + (t.length-IMPORT.length ? ` — ${t.length-IMPORT.length} ignoré(s).` : ".") : "Aucun article valide."; };
 $("iGo").onclick = async () => { if (!db || !IMPORT.length) return; const lot = {}, t0 = Date.now();
-  IMPORT.forEach((a,i) => { lot[db.ref("produits").push().key] = {nom:a.nom, prix:a.prix, categorie:a.categorie||"Autres", description:a.description, disponible:true, photo:"", t:t0+i}; });
+  IMPORT.forEach((a,i) => { lot[db.ref("produits").push().key] = {nom:a.nom, prix:a.prix, categorie:a.categorie||"Autres", description:a.description, disponible:true, publie:true, photo:"", t:t0+i}; });
   try { await db.ref("produits").update(lot); $("iMsg").innerHTML = `<span class="ok">${IMPORT.length} article(s) importé(s).</span>`; $("iTexte").value = ""; IMPORT = []; $("iGo").disabled = true; }
   catch(e){ $("iMsg").innerHTML = `<span class="ko">Refusé : ${esc(e.code||e.message)}</span>`; } };
 
@@ -452,7 +460,7 @@ $("iGo").onclick = async () => { if (!db || !IMPORT.length) return; const lot = 
 const CH = {pNom:"nom",pPrix:"prix",pPromo:"promo",pCat:"categorie",pStock:"stock",pMarque:"marque",pRef:"ref",pFour:"fournisseur",pDesc:"description"};
 function remplirFormulaire(p){
   Object.entries(CH).forEach(([id,k]) => $(id).value = p && p[k] != null ? p[k] : "");
-  $("pDispo").checked = p ? p.disponible !== false : true; $("pVedette").checked = !!(p && p.vedette);
+  $("pPublie").checked = p ? p.publie !== false : true; $("pDispo").checked = p ? p.disponible !== false : true; $("pVedette").checked = !!(p && p.vedette);
   PHOTO = ""; $("pPhoto").value = ""; $("pCam").value = "";
   $("apercu").src = p && p.photo ? p.photo : ""; $("apercu").classList.toggle("hide", !(p && p.photo));
   $("admTitre").textContent = p ? "Modifier le produit" : "Ajouter un produit"; $("pAnnul").classList.toggle("hide", !p);
@@ -466,18 +474,19 @@ $("pSave").onclick = async () => {
   const photo = PHOTO || (EDITION && PRODUITS[EDITION].photo) || "";
   if (photo.length > 300000) { $("pMsg").textContent = "Photo trop lourde."; return; }
   const d = {nom, prix, promo:num("pPromo"), stock:num("pStock"), categorie:$("pCat").value.trim()||"Autres", marque:$("pMarque").value.trim(), ref:$("pRef").value.trim(), fournisseur:$("pFour").value.trim(),
-    description:$("pDesc").value.trim(), disponible:$("pDispo").checked, vedette:$("pVedette").checked, photo, t:Date.now()};
+    description:$("pDesc").value.trim(), publie:$("pPublie").checked, disponible:$("pDispo").checked, vedette:$("pVedette").checked, photo, t:Date.now()};
   try { if (EDITION) await db.ref("produits/"+EDITION).set(d); else await db.ref("produits").push(d);
-    $("pMsg").innerHTML = `<span class="ok">Enregistré : visible sur l’accueil.</span>`; EDITION = null; remplirFormulaire(null); }
+    $("pMsg").innerHTML = `<span class="ok">${d.publie ? "Enregistré et publié sur l’accueil." : "Enregistré en brouillon (non visible par les clients)."}</span>`; EDITION = null; remplirFormulaire(null); }
   catch(e){ $("pMsg").innerHTML = `<span class="ko">Refusé : ${esc(e.code||e.message)}. Vérifiez la connexion et les règles de la base.</span>`; }
 };
 function majAdminListe(){
   const el = $("admList"); const l = Object.entries(PRODUITS).sort((a,b) => (b[1].t||0)-(a[1].t||0));
-  el.innerHTML = l.length ? l.map(([id,p]) => `<div class="line"><div style="min-width:0"><b>${esc(p.nom)}</b><div class="muted">${fmt(p.prix)} FCFA · ${esc(p.categorie||"")}${p.stock!==""&&p.stock!=null?" · stock "+p.stock:""}${p.fournisseur?" · "+esc(p.fournisseur):""}</div></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="sm" data-edit="${id}">Modifier</button><button class="sm" data-dispo="${id}">${p.disponible===false?"Remettre":"Épuisé"}</button><button class="sm danger" data-del="${id}">Suppr.</button></div></div>`).join("") : `<p class="muted">Aucun produit.</p>`;
+  el.innerHTML = l.length ? l.map(([id,p]) => `<div class="line"><div style="min-width:0"><b>${esc(p.nom)}</b> <span class="${p.publie===false?"ko":"ok"}">${p.publie===false?"● Brouillon":"● Publié"}</span><div class="muted">${fmt(p.prix)} FCFA · ${esc(p.categorie||"")}${p.stock!==""&&p.stock!=null?" · stock "+p.stock:""}${p.fournisseur?" · "+esc(p.fournisseur):""}</div></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="sm ${p.publie===false?"pri":""}" data-pub="${id}">${p.publie===false?"Publier":"Dépublier"}</button><button class="sm" data-edit="${id}">Modifier</button><button class="sm" data-dispo="${id}">${p.disponible===false?"Remettre":"Épuisé"}</button><button class="sm danger" data-del="${id}">Supprimer</button></div></div>`).join("") : `<p class="muted">Aucun produit.</p>`;
+  el.querySelectorAll("[data-pub]").forEach(b => b.onclick = () => db.ref("produits/"+b.dataset.pub+"/publie").set(PRODUITS[b.dataset.pub].publie === false));
   el.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => { EDITION = b.dataset.edit; remplirFormulaire(PRODUITS[EDITION]); scrollTo({top:0,behavior:"smooth"}); });
   el.querySelectorAll("[data-dispo]").forEach(b => b.onclick = () => db.ref("produits/"+b.dataset.dispo+"/disponible").set(PRODUITS[b.dataset.dispo].disponible === false));
-  el.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (confirm("Supprimer ce produit ?")) db.ref("produits/"+b.dataset.del).remove(); });
+  el.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (confirm("Supprimer définitivement « " + PRODUITS[b.dataset.del].nom + " » ? Cette action est irréversible.")) db.ref("produits/"+b.dataset.del).remove(); });
 }
 if (location.hash.toLowerCase().includes("admin")) montrer("vAdm");
 majNb(); majCatalogue();
