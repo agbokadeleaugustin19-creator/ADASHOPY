@@ -46,9 +46,10 @@ h2,h3{color:var(--gold)}
 <header>
   <button class="ic" id="burger" aria-label="Menu">☰</button>
   <b id="nomBoutique">ADASHOPY</b>
-  <button class="ic" id="goPan" aria-label="Panier" style="font-size:20px">🛒 <span id="nbPan">0</span></button>
+  <div style="display:flex;align-items:center"><button class="ic" id="modeBtn" aria-label="Changer l’apparence" style="font-size:22px">🌗</button><button class="ic" id="goPan" aria-label="Panier" style="font-size:20px">🛒 <span id="nbPan">0</span></button></div>
 </header>
 <div id="ov" class="hide"></div>
+<div id="toast" class="hide" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card);color:var(--tx);border:1px solid var(--gold);border-radius:999px;padding:8px 16px;z-index:50;font-weight:700"></div>
 <nav id="menu">
   <h3 style="margin:0 0 10px">Menu</h3>
   <button data-v="vAcc">🏠 Accueil</button>
@@ -107,7 +108,7 @@ h2,h3{color:var(--gold)}
 <section id="vAdm" class="hide">
   <div id="loginBox" class="card">
     <h3 style="margin-top:4px">Espace administrateur</h3>
-    <label>E-mail administrateur (le seul autorisé)</label><input id="aMail" type="email" value="deleaugustinagboka3@gmail.com" readonly>
+    <label>E-mail administrateur</label><input id="aMail" type="email" autocomplete="off" autocapitalize="off" placeholder="Saisissez votre adresse e-mail">
     <label>Mot de passe</label>
     <div style="position:relative"><input id="aPwd" type="password" autocomplete="current-password" style="padding-right:50px"><button type="button" class="ic oeil" data-o="aPwd" aria-label="Afficher le mot de passe" style="position:absolute;right:2px;top:4px;font-size:22px">👁️</button></div>
     <div id="confBox" class="hide"><label>Confirmer le mot de passe</label>
@@ -280,25 +281,37 @@ document.querySelectorAll("#menu [data-v]").forEach(b => b.onclick = () => montr
 // ===== Thème =====
 const okCouleur = c => /^#[0-9a-f]{3,8}$/i.test(c||"");
 const okUrl = u => /^https:\/\/[^\s"')]+$/i.test(u||"");
-function appliquerTheme(t){
+function appliquerTheme(t, sansRemplir){
   t = t || PRESETS["Vert sombre"]; const r = document.documentElement.style;
   [["bg","--bg"],["card","--card"],["tx","--tx"],["gold","--gold"],["btn","--btn"],["btnt","--btnt"]].forEach(([k,v]) => { if (okCouleur(t[k])) r.setProperty(v, t[k]); });
   r.setProperty("--in", okCouleur(t.card) ? `color-mix(in srgb, ${t.card} 88%, ${t.tx||"#888"})` : "#232a20");
   r.setProperty("--bgimg", okUrl(t.img) ? `url("${t.img}")` : "none");
-  remplirTheme(t);
+  if (!sansRemplir) remplirTheme(t);
 }
 function remplirTheme(t){
   $("thBg").value=t.bg;$("thCard").value=t.card;$("thTx").value=t.tx;$("thGold").value=t.gold;$("thBtn").value=t.btn;$("thBtnT").value=t.btnt;$("thImg").value=t.img||"";
 }
 function lireTheme(){ return {bg:$("thBg").value,card:$("thCard").value,tx:$("thTx").value,gold:$("thGold").value,btn:$("thBtn").value,btnt:$("thBtnT").value,img:$("thImg").value.trim()}; }
 $("presets").innerHTML = Object.keys(PRESETS).map(n => `<button class="sm" data-p="${n}">${n}</button>`).join("");
-$("presets").querySelectorAll("button").forEach(b => b.onclick = () => appliquerTheme(PRESETS[b.dataset.p]));
+let MODE = lsGet("mode","defaut"), THEME_BOUTIQUE = lsGet("theme", null) || PRESETS["Vert sombre"];
+const MODES = {defaut:["🌗","Thème de la boutique"], clair:["☀️","Thème clair"], sombre:["🌙","Thème sombre"]};
+function majAffichage(){
+  const t = MODE==="clair" ? PRESETS["Clair"] : MODE==="sombre" ? PRESETS["Vert sombre"] : THEME_BOUTIQUE;
+  appliquerTheme(t, MODE !== "defaut"); $("modeBtn").textContent = MODES[MODE][0]; $("modeBtn").title = MODES[MODE][1];
+}
+function apercuTheme(t){ MODE = "defaut"; lsSet("mode", MODE); appliquerTheme(t); majAffichage2(); }
+function majAffichage2(){ $("modeBtn").textContent = MODES[MODE][0]; }
+$("modeBtn").onclick = () => {
+  MODE = {defaut:"clair", clair:"sombre", sombre:"defaut"}[MODE]; lsSet("mode", MODE); majAffichage();
+  const t = $("toast"); t.textContent = MODES[MODE][1]; t.classList.remove("hide"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.add("hide"), 1500);
+};
+$("presets").querySelectorAll("button").forEach(b => b.onclick = () => apercuTheme(PRESETS[b.dataset.p]));
 $("thSave").onclick = async () => {
-  const t = lireTheme(); appliquerTheme(t); lsSet("theme", t);
+  const t = lireTheme(); THEME_BOUTIQUE = t; MODE = "defaut"; lsSet("mode", MODE); majAffichage(); lsSet("theme", t);
   try { await db.ref("theme").set(t); $("thMsg").innerHTML = `<span class="ok">Thème appliqué à toute la boutique.</span>`; }
   catch(e){ $("thMsg").innerHTML = `<span class="ko">Enregistré sur cet appareil seulement (${esc(e.code||e.message)}). Voir les règles de la base.</span>`; }
 };
-$("thReset").onclick = () => { appliquerTheme(PRESETS["Vert sombre"]); };
+$("thReset").onclick = () => apercuTheme(PRESETS["Vert sombre"]);
 $("thImport").onclick = async () => {
   let txt = $("thJson").value.trim(); const url = $("thUrl").value.trim();
   try {
@@ -306,11 +319,11 @@ $("thImport").onclick = async () => {
     const o = JSON.parse(txt), t = {...PRESETS["Vert sombre"]};
     ["bg","card","tx","gold","btn","btnt"].forEach(k => { if (okCouleur(o[k])) t[k] = o[k]; });
     if (okUrl(o.img)) t.img = o.img;
-    appliquerTheme(t); $("thMsg").innerHTML = `<span class="ok">Thème chargé. Touchez « Appliquer à la boutique » pour le publier.</span>`;
+    apercuTheme(t); $("thMsg").innerHTML = `<span class="ok">Thème chargé. Touchez « Appliquer à la boutique » pour le publier.</span>`;
   } catch(e){ $("thMsg").innerHTML = `<span class="ko">Impossible : ${esc(e.message)} (si le site bloque le téléchargement, collez le contenu JSON ci-dessus).</span>`; }
 };
-appliquerTheme(lsGet("theme", null));
-if (db) db.ref("theme").on("value", s => { if (s.val()) { lsSet("theme", s.val()); appliquerTheme(s.val()); } });
+majAffichage();
+if (db) db.ref("theme").on("value", s => { if (s.val()) { lsSet("theme", s.val()); THEME_BOUTIQUE = s.val(); majAffichage(); } });
 
 // ===== Réglages boutique =====
 function majReg(){
