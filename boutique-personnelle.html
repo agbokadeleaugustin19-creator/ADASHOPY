@@ -45,7 +45,7 @@ label{font-weight:700;font-size:14px}
   <div class="tabs">
     <button id="tCat" class="on">Catalogue</button>
     <button id="tPan">Panier (<span id="nbPan">0</span>)</button>
-    <button id="tAdm">Gestion</button>
+    <button id="tAdm" class="hide">Gestion</button>
   </div>
 
   <!-- CATALOGUE -->
@@ -75,7 +75,7 @@ label{font-weight:700;font-size:14px}
   <!-- GESTION (administrateur) -->
   <section id="vAdm" class="hide">
     <div id="loginBox" class="card">
-      <h3 style="margin:4px 0 8px;color:var(--gold)">Espace administrateur</h3>
+      <h3 style="margin:4px 0 8px;color:var(--gold)">Boutique personnelle · Espace administrateur</h3>
       <label>E-mail</label><input id="aMail" type="email" autocomplete="username">
       <label>Mot de passe</label><input id="aPwd" type="password" autocomplete="current-password">
       <button class="pri" id="aLogin" style="width:100%">Se connecter</button>
@@ -106,8 +106,13 @@ label{font-weight:700;font-size:14px}
         <label>Catégorie</label><input id="pCat" list="listeCats" placeholder="Ex. Vêtements, Cosmétiques…">
         <datalist id="listeCats"></datalist>
         <label>Description</label><textarea id="pDesc" rows="2"></textarea>
-        <label>Photo (prise avec le téléphone ou choisie dans la galerie)</label>
-        <input id="pPhoto" type="file" accept="image/*">
+        <label>Photo du produit</label>
+        <div style="display:flex;gap:8px;margin:4px 0 6px">
+          <button type="button" id="bCam" style="flex:1">📷 Prendre une photo</button>
+          <button type="button" id="bGal" style="flex:1">🖼️ Galerie</button>
+        </div>
+        <input id="pPhoto" type="file" accept="image/*" class="hide">
+        <input id="pCam" type="file" accept="image/*" capture="environment" class="hide">
         <img id="apercu" class="hide" style="width:120px;border-radius:10px;margin-top:6px">
         <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="pDispo" checked style="width:auto;margin:0"> Disponible à la vente</label>
         <div style="display:flex;gap:8px;margin-top:10px">
@@ -275,6 +280,9 @@ $("commander").onclick = () => {
 };
 
 // ----- Photo : réduite sur le téléphone avant envoi -----
+$("bGal").onclick = () => $("pPhoto").click();
+$("bCam").onclick = () => $("pCam").click();
+$("pCam").onchange = e => { $("pPhoto").onchange(e); };
 $("pPhoto").onchange = async e => {
   const f = e.target.files[0];
   if (!f) { PHOTO = ""; $("apercu").classList.add("hide"); return; }
@@ -426,7 +434,7 @@ function remplirFormulaire(p){
   $("pCat").value = p ? (p.categorie || "") : "";
   $("pDesc").value = p ? (p.description || "") : "";
   $("pDispo").checked = p ? p.disponible !== false : true;
-  $("pPhoto").value = ""; PHOTO = "";
+  $("pPhoto").value = ""; $("pCam").value = ""; PHOTO = "";
   $("apercu").src = p && p.photo ? p.photo : ""; $("apercu").classList[p && p.photo ? "remove" : "add"]("hide");
   $("admTitre").textContent = p ? "Modifier le produit" : "Ajouter un produit";
   $("pAnnul").classList[p ? "remove" : "add"]("hide");
@@ -484,6 +492,13 @@ function majAdminListe(){
     if (confirm("Supprimer définitivement ce produit ?")) db.ref("produits/" + b.dataset.del).remove();
   });
 }
+
+// ----- Lien administrateur : ajouter #admin à l'adresse du site -----
+try { if (location.hash.toLowerCase().includes("admin")) localStorage.setItem("estAdmin", "1"); } catch(e){}
+let ESTADMIN = false;
+try { ESTADMIN = localStorage.getItem("estAdmin") === "1"; } catch(e){}
+if (ESTADMIN) $("tAdm").classList.remove("hide");
+if (location.hash.toLowerCase().includes("admin")) montrer("vAdm");
 
 majNb();
 majCatalogue();
