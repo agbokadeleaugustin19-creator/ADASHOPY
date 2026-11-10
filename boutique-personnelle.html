@@ -28,7 +28,7 @@ label{font-weight:700;font-size:14px}
 .sansphoto{display:flex;align-items:center;justify-content:center;opacity:.6;font-size:13px}
 .prod{position:relative}.prod h3{font-size:15px;margin:8px 0 2px}
 .prix{color:var(--gold);font-weight:800}.old{text-decoration:line-through;opacity:.6;font-weight:400;font-size:13px;margin-left:6px}
-.badge{position:absolute;top:18px;left:18px;background:var(--ko);color:#fff;font-size:12px;font-weight:800;border-radius:8px;padding:2px 8px}
+.badge{position:absolute;top:14px;left:14px;background:var(--ko);color:#fff;font-size:12px;font-weight:800;border-radius:8px;padding:2px 8px}
 .cat{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px}.cat button{white-space:nowrap}
 .muted{opacity:.75;font-size:13px}.ko{color:var(--ko)}.ok{color:var(--ok)}
 .line{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd)}
@@ -526,23 +526,14 @@ function majCatalogue(){
   liste.sort((a,b) => (b[1].vedette?1:0)-(a[1].vedette?1:0) || (b[1].t||0)-(a[1].t||0));
   $("prods").innerHTML = liste.map(([id,p]) => {
     const promo = p.promo > 0 && p.promo < p.prix;
-    return `<div class="card prod">
+    return `<div class="card prod" data-det="${id}" style="cursor:pointer;padding:8px">
       ${p.vedette ? `<span class="badge" style="background:var(--gold);color:var(--bg)">⭐</span>` : promo ? `<span class="badge">PROMO</span>` : ""}
-      ${p.photo ? `<img src="${p.photo}" alt="${esc(p.nom)}" data-det="${id}" style="cursor:pointer">` : `<div class="sansphoto" data-det="${id}" style="cursor:pointer">Pas de photo</div>`}
-      <h3 data-det="${id}" style="cursor:pointer">${esc(p.nom)}</h3>
-      <div class="prix">${fmt(promo ? p.promo : p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""}${promo ? `<span class="old">${fmt(p.prix)}</span>` : ""}</div>
-      ${p.marque ? `<div class="muted">${esc(p.marque)}</div>` : ""}
-      ${p.description ? `<div class="muted">${esc(p.description)}</div>` : ""}
-      <div class="muted" data-det="${id}" style="cursor:pointer;margin-top:4px">${photosDe(p).length > 1 ? "📷 " + photosDe(p).length + " " : ""}${urlVideo(p.video) ? "🎬 " : ""}› Voir les détails</div>
-      ${listeCoul(p).length ? `<div class="chips">${listeCoul(p).map(c => `<button type="button" class="chip ${SELCOUL[id]===c?"on":""}" data-id="${id}" data-c="${esc(c)}">${puce(c)}${esc(c)}</button>`).join("")}</div>` : ""}
-      ${enStock(p) ? `<button class="pri" style="width:100%;margin-top:8px" data-ajout="${id}">Ajouter au panier</button>` : `<div class="ko" style="margin-top:6px">Épuisé</div>`}
+      ${p.photo ? `<img src="${p.photo}" alt="${esc(p.nom)}">` : `<div class="sansphoto">Pas de photo</div>`}
+      <div class="prix" style="margin-top:8px;text-align:center">${fmt(promo ? p.promo : p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""}${promo ? `<span class="old">${fmt(p.prix)}</span>` : ""}</div>
+      ${enStock(p) ? "" : `<div class="ko" style="text-align:center;font-size:13px">Épuisé</div>`}
     </div>`; }).join("");
   $("prods").querySelectorAll("[data-det]").forEach(b => b.onclick = () => ouvrirDetail(b.dataset.det));
-  $("prods").querySelectorAll(".chip").forEach(b => b.onclick = () => { SELCOUL[b.dataset.id] = b.dataset.c; b.parentNode.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b)); });
-  $("prods").querySelectorAll("[data-ajout]").forEach(b => b.onclick = () => {
-    const id = b.dataset.ajout, p = PRODUITS[id];
-    if (listeCoul(p).length && !SELCOUL[id]) return alert("Choisissez d’abord une couleur.");
-    ajouter(id, SELCOUL[id] || ""); b.textContent = "✓ Ajouté"; });
+
   $("vide").textContent = liste.length ? "" : "Aucun produit à afficher pour l’instant.";
 }
 $("recherche").oninput = majCatalogue;
