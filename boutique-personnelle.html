@@ -7,7 +7,7 @@
 <style>
 :root{--bg:#0f130f;--card:#1a1f18;--in:#232a20;--tx:#f1e6c4;--gold:#f0c85a;--ok:#3ddc5a;--ko:#ff6b5e;--bd:#353a2c;--btn:#3ddc5a;--btnt:#0d1a0f;--bgimg:none}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg) var(--bgimg) center/cover fixed;color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--bd)}
 header b{color:var(--gold);font-size:17px;letter-spacing:.5px}
 .ic{background:none;border:0;color:var(--gold);font-size:28px;padding:2px 10px;line-height:1}
@@ -59,6 +59,9 @@ h2,h3{color:var(--gold)}
 #menu{position:fixed;top:0;bottom:0;left:0;width:78%;max-width:300px;background:var(--card);z-index:40;padding:20px 14px;transform:translateX(-105%);transition:transform .25s;border-right:1px solid var(--bd)}
 #menu.open{transform:none}
 #menu button{display:block;width:100%;text-align:left;margin:8px 0;border-radius:14px}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--bgimg) center/cover no-repeat;pointer-events:none}
+.fonds{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;margin:6px 0}.fonds button{height:56px;padding:0 4px;border-radius:10px;font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 3px #000;border:2px solid var(--bd);background-size:cover;line-height:1.1}.fonds button.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+#thPrev img{width:100%;max-height:140px;object-fit:cover;border-radius:10px;margin-top:8px;display:block}
 #pied{margin-top:auto;text-align:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--bd);color:var(--tx);opacity:.7;font-size:10px;line-height:1.2;background:var(--bg)}#pied b{color:var(--gold);font-weight:700}
 </style>
 </head>
@@ -252,7 +255,14 @@ h2,h3{color:var(--gold)}
         <div><label>Boutons</label><input type="color" id="thBtn"></div>
         <div><label>Texte boutons</label><input type="color" id="thBtnT"></div>
       </div>
-      <label>Image de fond (adresse https://… d’une image)</label><input id="thImg" placeholder="https://…">
+      <label>Arrière-plan</label>
+      <div id="fonds" class="fonds"></div>
+      <button type="button" id="thPhotoBtn" style="width:100%;margin-top:4px">📷 Arrière-plan personnalisé : choisir une photo de mon téléphone</button>
+      <input id="thPhoto" type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" tabindex="-1">
+      <div id="thPrev"></div>
+      <label style="margin-top:10px">Assombrir l’arrière-plan pour mieux lire : <b id="thDimV">0</b> %</label>
+      <input type="range" id="thDim" min="0" max="70" step="5" value="0" style="width:100%">
+      <label>ou adresse d’une image (https://…)</label><input id="thImg" placeholder="https://…">
       <div style="display:flex;gap:8px"><button class="pri" id="thSave" style="flex:1">Appliquer à la boutique</button><button id="thReset">Réinitialiser</button></div>
       <hr style="border-color:var(--bd);margin:16px 0">
       <label>Importer un thème depuis Internet</label>
@@ -344,17 +354,49 @@ document.querySelectorAll("#menu [data-v]").forEach(b => b.onclick = () => montr
 // ===== Thème =====
 const okCouleur = c => /^#[0-9a-f]{3,8}$/i.test(c||"");
 const okUrl = u => /^https:\/\/[^\s"')]+$/i.test(u||"");
+const okData = u => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(u||"");
+let thData = "", curFond = "";
+const FONDS = {
+  "Nuit étoilée":"radial-gradient(circle at 20% 15%,#24367a 0,#0b1020 65%)",
+  "Forêt":"linear-gradient(160deg,#0f2a14,#1d4d25 50%,#0b1a0e)",
+  "Or":"linear-gradient(135deg,#3b2a05,#8a6a12 50%,#2a1d03)",
+  "Océan":"linear-gradient(180deg,#0a3d62,#1e90b8 60%,#0a2a4a)",
+  "Coucher de soleil":"linear-gradient(180deg,#ff7e5f,#feb47b 45%,#6a3f7a)",
+  "Violet":"linear-gradient(160deg,#2a1450,#6a2fb0 60%,#1a0b33)",
+  "Anthracite":"linear-gradient(160deg,#2f2f2f,#0e0e0e)",
+  "Rose pastel":"linear-gradient(160deg,#ffe3ee,#ffc2d6)",
+  "Menthe":"linear-gradient(160deg,#e3fff1,#b8f0d4)",
+  "Rayures":"repeating-linear-gradient(45deg,#14180f 0 14px,#1b2214 14px 28px)"
+};
+function fondCss(t){
+  let img = "none";
+  if (t.fond && FONDS[t.fond]) img = FONDS[t.fond]; else if (okData(t.img) || okUrl(t.img)) img = `url("${t.img}")`;
+  const d = Math.min(70, Math.max(0, +t.dim || 0));
+  if (img !== "none" && d > 0) { const c = `rgba(0,0,0,${d/100})`; img = `linear-gradient(${c},${c}), ${img}`; }
+  return img;
+}
 function appliquerTheme(t, sansRemplir){
   t = t || PRESETS["Vert sombre"]; const r = document.documentElement.style;
   [["bg","--bg"],["card","--card"],["tx","--tx"],["gold","--gold"],["btn","--btn"],["btnt","--btnt"]].forEach(([k,v]) => { if (okCouleur(t[k])) r.setProperty(v, t[k]); });
   r.setProperty("--in", okCouleur(t.card) ? `color-mix(in srgb, ${t.card} 88%, ${t.tx||"#888"})` : "#232a20");
-  r.setProperty("--bgimg", okUrl(t.img) ? `url("${t.img}")` : "none");
+  r.setProperty("--bgimg", fondCss(t));
   if (!sansRemplir) remplirTheme(t);
 }
-function remplirTheme(t){
-  $("thBg").value=t.bg;$("thCard").value=t.card;$("thTx").value=t.tx;$("thGold").value=t.gold;$("thBtn").value=t.btn;$("thBtnT").value=t.btnt;$("thImg").value=t.img||"";
+function majFondsUI(){
+  const aucun = !curFond && !thData && !$("thImg").value.trim();
+  $("fonds").innerHTML = `<button type="button" data-f="" class="${aucun?"on":""}" style="background:var(--card);color:var(--tx);text-shadow:none">Aucun</button>` +
+    Object.keys(FONDS).map(n => `<button type="button" data-f="${n}" class="${curFond===n?"on":""}" style="background:${FONDS[n]}">${n}</button>`).join("");
+  $("fonds").querySelectorAll("button").forEach(b => b.onclick = () => { curFond = b.dataset.f; thData = ""; $("thImg").value = ""; majFond(); });
+  $("thPrev").innerHTML = thData ? `<img src="${thData}" alt=""><button type="button" class="sm" id="thPhotoDel" style="margin-top:6px">✕ Retirer ma photo</button>` : "";
+  if (thData) $("thPhotoDel").onclick = () => { thData = ""; majFond(); };
 }
-function lireTheme(){ return {bg:$("thBg").value,card:$("thCard").value,tx:$("thTx").value,gold:$("thGold").value,btn:$("thBtn").value,btnt:$("thBtnT").value,img:$("thImg").value.trim()}; }
+function remplirTheme(t){
+  $("thBg").value=t.bg;$("thCard").value=t.card;$("thTx").value=t.tx;$("thGold").value=t.gold;$("thBtn").value=t.btn;$("thBtnT").value=t.btnt;
+  $("thImg").value = okUrl(t.img) ? t.img : ""; thData = okData(t.img) ? t.img : ""; curFond = (t.fond && FONDS[t.fond]) ? t.fond : "";
+  $("thDim").value = t.dim || 0; $("thDimV").textContent = t.dim || 0; majFondsUI();
+}
+function lireTheme(){ return {bg:$("thBg").value,card:$("thCard").value,tx:$("thTx").value,gold:$("thGold").value,btn:$("thBtn").value,btnt:$("thBtnT").value,img:thData || $("thImg").value.trim(),fond:curFond,dim:+$("thDim").value}; }
+const majFond = () => apercuTheme(lireTheme());
 $("presets").innerHTML = Object.keys(PRESETS).map(n => `<button class="sm" data-p="${n}">${n}</button>`).join("");
 let MODE = lsGet("mode","defaut"), THEME_BOUTIQUE = lsGet("theme", null) || PRESETS["Vert sombre"];
 const MODES = {defaut:["🌗","Thème de la boutique"], clair:["☀️","Thème clair"], sombre:["🌙","Thème sombre"]};
@@ -368,7 +410,16 @@ $("modeBtn").onclick = () => {
   MODE = {defaut:"clair", clair:"sombre", sombre:"defaut"}[MODE]; lsSet("mode", MODE); majAffichage();
   const t = $("toast"); t.textContent = MODES[MODE][1]; t.classList.remove("hide"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.add("hide"), 1500);
 };
-$("presets").querySelectorAll("button").forEach(b => b.onclick = () => apercuTheme(PRESETS[b.dataset.p]));
+$("presets").querySelectorAll("button").forEach(b => b.onclick = () => { const c = lireTheme(); apercuTheme({...PRESETS[b.dataset.p], img:c.img, fond:c.fond, dim:c.dim}); });
+$("thDim").oninput = () => { $("thDimV").textContent = $("thDim").value; majFond(); };
+$("thImg").onchange = () => { thData = ""; curFond = ""; majFond(); };
+$("thPhotoBtn").onclick = () => $("thPhoto").click();
+$("thPhoto").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return; e.target.value = "";
+  try { const d = await reduire(f, 1000, 0.72); thData = d; curFond = ""; $("thImg").value = ""; majFond();
+    $("thMsg").innerHTML = `<span class="ok">Photo chargée. Touchez « Appliquer à la boutique » pour la publier chez tous les clients.</span>`; }
+  catch(_){ $("thMsg").innerHTML = `<span class="ko">Impossible de lire cette image. Essayez une autre photo (JPG ou PNG).</span>`; }
+};
 $("thSave").onclick = async () => {
   const t = lireTheme(); THEME_BOUTIQUE = t; MODE = "defaut"; lsSet("mode", MODE); majAffichage(); lsSet("theme", t);
   try { await db.ref("theme").set(t); $("thMsg").innerHTML = `<span class="ok">Thème appliqué à toute la boutique.</span>`; }
