@@ -35,6 +35,8 @@ label{font-weight:700;font-size:14px}
 .total{font-size:20px;font-weight:800;color:var(--gold);margin:10px 0}
 h2,h3{color:var(--gold)}
 .hide{display:none!important}
+.wabtn{display:flex;align-items:center;justify-content:center;gap:10px;background:#25D366!important;color:#fff!important;border-color:transparent!important;font-size:16px}
+.wabtn svg{flex:none}
 #erreur{background:#3a1f1b;border:1px solid var(--ko);color:#ffd6cf;border-radius:12px;padding:10px;font-size:13px;margin-bottom:10px}
 #ov{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:30}
 #menu{position:fixed;top:0;bottom:0;left:0;width:78%;max-width:300px;background:var(--card);z-index:40;padding:20px 14px;transform:translateX(-105%);transition:transform .25s;border-right:1px solid var(--bd)}
@@ -81,20 +83,16 @@ h2,h3{color:var(--gold)}
     <label>Remarque</label><textarea id="cNote" rows="2"></textarea>
   </div>
   <div class="total">Total : <span id="total">0</span> FCFA</div>
-  <button class="pri" id="commander" style="width:100%">Commander sur WhatsApp</button>
+  <button class="pri wabtn" id="commander" style="width:100%"></button>
 </section>
 
 <!-- CONTACT -->
 <section id="vCon" class="hide">
   <h2>Contactez-nous</h2>
   <div class="card">
-    <p>📱 <b id="ctTel"></b></p><p>✉️ <b id="ctMail"></b></p><p>📍 <b id="ctAdr"></b></p>
-    <button class="pri" id="ctWa" style="width:100%">Écrire sur WhatsApp</button>
-  </div>
-  <div class="card">
-    <label>Votre nom</label><input id="mNom">
-    <label>Votre message</label><textarea id="mMsg" rows="4"></textarea>
-    <button class="pri" id="mSend" style="width:100%">Envoyer par WhatsApp</button>
+    <p id="ctTxt" style="white-space:pre-wrap"></p>
+    <p id="ctHor" class="muted hide"></p><p id="ctAdr" class="muted hide"></p>
+    <button class="pri wabtn" id="ctWa" style="width:100%"></button>
   </div>
 </section>
 
@@ -141,6 +139,7 @@ h2,h3{color:var(--gold)}
       <button class="sm on" data-t="tProd">Produits</button>
       <button class="sm" data-t="tImp">Import</button>
       <button class="sm" data-t="tThe">Thème</button>
+      <button class="sm" data-t="tCon">Contact</button>
       <button class="sm" data-t="tReg">Boutique</button>
       <button class="sm" id="voirBout">🏠 Voir la boutique</button>
       <button class="sm danger" id="aOut">Se déconnecter</button>
@@ -213,12 +212,22 @@ h2,h3{color:var(--gold)}
       <p id="thMsg" class="muted"></p>
     </div>
 
+    <div id="tCon" class="hide card">
+      <h3 style="margin-top:4px">Page « Contactez-nous » (vue par les clients)</h3>
+      <p class="muted">Les clients ne voient que le bouton WhatsApp : votre numéro et votre e-mail ne sont pas affichés.</p>
+      <label>Numéro WhatsApp (avec indicatif, ex. 2290144097073)</label><input id="cTelA" inputmode="tel">
+      <label>Texte affiché aux clients</label><textarea id="cTxtA" rows="3"></textarea>
+      <label>Nom du bouton</label><input id="cBtnA">
+      <label>Message automatique reçu dans votre WhatsApp (pour reconnaître un client)</label><input id="cMsgA" placeholder="Bonjour, je suis un client de la boutique Adashopy.">
+      <label>Horaires (facultatif)</label><input id="cHorA" placeholder="Ex. Lundi–Samedi, 8h–19h">
+      <label>Adresse / lieu (facultatif)</label><input id="cAdrA">
+      <button class="pri" id="cSave" style="width:100%">Enregistrer le contact</button>
+      <p id="cMsg" class="muted"></p>
+    </div>
+
     <div id="tReg" class="hide card">
       <h3 style="margin-top:4px">Informations de la boutique</h3>
       <label>Nom de la boutique</label><input id="rNom">
-      <label>Téléphone WhatsApp (avec indicatif)</label><input id="rTel" inputmode="tel">
-      <label>E-mail de contact</label><input id="rMail">
-      <label>Adresse</label><input id="rAdr">
       <label>Texte « À propos de nous »</label><textarea id="rApr" rows="5"></textarea>
       <button class="pri" id="rSave" style="width:100%">Enregistrer</button>
       <p id="rMsg" class="muted"></p>
@@ -242,7 +251,8 @@ const FIREBASE_CONFIG = {
   appId: "1:700758337686:web:138072be50ce8d00b7fab7"
 };
 const ADMIN_EMAIL = "deleaugustinagboka3@gmail.com";
-const DEF_REG = {nom:"ADASHOPY", tel:"2290144097073", mail:ADMIN_EMAIL, adr:"", apropos:"Bienvenue chez Adashopy, votre boutique en ligne. Découvrez nos produits et commandez facilement par WhatsApp."};
+const DEF_REG = {nom:"ADASHOPY", tel:"2290144097073", adr:"", ctTxt:"Une question ou une commande ? Écrivez-nous directement sur WhatsApp.", ctHor:"", ctBtn:"Écrire sur WhatsApp", ctMsg:"Bonjour, je suis un client de la boutique Adashopy.", apropos:"Bienvenue chez Adashopy, votre boutique en ligne. Découvrez nos produits et commandez facilement par WhatsApp."};
+const WA_ICON = `<svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path fill="#fff" d="M16 3C9 3 3.3 8.6 3.3 15.5c0 2.3.6 4.4 1.8 6.3L3 29l7.4-1.9c1.8 1 3.8 1.5 5.9 1.5 7 0 12.7-5.6 12.7-12.5S23 3 16 3z"/><path fill="#25D366" d="M22.6 19.4c-.3-.2-1.9-.9-2.2-1s-.5-.2-.7.2-.8 1-1 1.2-.4.2-.7.1c-1.9-.9-3.2-1.7-4.4-3.8-.3-.6.3-.6.9-1.8.1-.2 0-.4 0-.5l-1-2.3c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.2c.2.2 2.2 3.4 5.4 4.7 2 .8 2.8.9 3.8.7.6-.1 1.9-.8 2.2-1.5s.3-1.4.2-1.5-.3-.2-.6-.4z"/></svg>`;
 const PRESETS = {
   "Vert sombre":{bg:"#0f130f",card:"#1a1f18",tx:"#f1e6c4",gold:"#f0c85a",btn:"#3ddc5a",btnt:"#0d1a0f"},
   "Clair":{bg:"#f6f6f2",card:"#ffffff",tx:"#1d1d1d",gold:"#b8860b",btn:"#1f8a3b",btnt:"#ffffff"},
@@ -328,21 +338,20 @@ if (db) db.ref("theme").on("value", s => { if (s.val()) { lsSet("theme", s.val()
 // ===== Réglages boutique =====
 function majReg(){
   $("nomBoutique").textContent = REG.nom.toUpperCase(); document.title = REG.nom;
-  $("ctTel").textContent = "+" + REG.tel; $("ctMail").textContent = REG.mail || "—"; $("ctAdr").textContent = REG.adr || "—";
+  $("ctTxt").textContent = REG.ctTxt; $("ctWa").innerHTML = WA_ICON + `<span>${esc(REG.ctBtn.replace(/^💬\s*/, ""))}</span>`;
+  $("ctHor").textContent = "🕒 " + REG.ctHor; $("ctHor").classList.toggle("hide", !REG.ctHor);
+  $("ctAdr").textContent = "📍 " + REG.adr; $("ctAdr").classList.toggle("hide", !REG.adr);
   $("aprTxt").textContent = REG.apropos;
-  $("rNom").value=REG.nom;$("rTel").value=REG.tel;$("rMail").value=REG.mail;$("rAdr").value=REG.adr;$("rApr").value=REG.apropos;
+  $("rNom").value=REG.nom;$("rApr").value=REG.apropos;$("cTelA").value=REG.tel;$("cTxtA").value=REG.ctTxt;$("cBtnA").value=REG.ctBtn;$("cMsgA").value=REG.ctMsg;$("cHorA").value=REG.ctHor;$("cAdrA").value=REG.adr;
 }
 if (db) db.ref("reglages").on("value", s => { REG = {...DEF_REG, ...(s.val()||{})}; majReg(); });
 majReg();
-$("rSave").onclick = async () => {
-  const r = {nom:$("rNom").value.trim()||DEF_REG.nom, tel:$("rTel").value.replace(/\D/g,"")||DEF_REG.tel, mail:$("rMail").value.trim(), adr:$("rAdr").value.trim(), apropos:$("rApr").value.trim()};
-  try { await db.ref("reglages").set(r); $("rMsg").innerHTML = `<span class="ok">Enregistré.</span>`; } catch(e){ $("rMsg").innerHTML = `<span class="ko">Refusé : ${esc(e.code||e.message)}</span>`; }
-};
-$("ctWa").onclick = () => location.href = `https://wa.me/${REG.tel}`;
-$("mSend").onclick = () => {
-  const m = $("mMsg").value.trim(); if (!m) return alert("Écrivez votre message.");
-  location.href = `https://wa.me/${REG.tel}?text=${encodeURIComponent(`Bonjour, je suis ${$("mNom").value.trim()||"un client"}.\n${m}`)}`;
-};
+const sauverReg = async (d, msg) => { try { await db.ref("reglages").update(d); $(msg).innerHTML = `<span class="ok">Enregistré.</span>`; } catch(e){ $(msg).innerHTML = `<span class="ko">Refusé : ${esc(e.code||e.message)}</span>`; } };
+$("rSave").onclick = () => sauverReg({nom:$("rNom").value.trim()||DEF_REG.nom, apropos:$("rApr").value.trim()}, "rMsg");
+$("cSave").onclick = () => sauverReg({tel:$("cTelA").value.replace(/\D/g,"")||DEF_REG.tel, ctTxt:$("cTxtA").value.trim()||DEF_REG.ctTxt, ctBtn:$("cBtnA").value.trim()||DEF_REG.ctBtn, ctMsg:$("cMsgA").value.trim()||DEF_REG.ctMsg, ctHor:$("cHorA").value.trim(), adr:$("cAdrA").value.trim()}, "cMsg");
+$("commander").innerHTML = WA_ICON + "<span>Commander sur WhatsApp</span>";
+const ouvrirWa = txt => { location.href = `https://wa.me/${REG.tel}?text=${encodeURIComponent(txt)}`; };
+$("ctWa").onclick = () => ouvrirWa(REG.ctMsg);
 
 // ===== Catalogue =====
 if (db) db.ref("produits").on("value", s => { PRODUITS = s.val() || {}; majCatalogue(); majAdminListe(); },
@@ -397,8 +406,8 @@ $("commander").onclick = () => {
   if (!nom || !tel) return alert("Indiquez votre nom et votre téléphone.");
   let total = 0;
   const l = ids.map(id => { const p = PRODUITS[id], q = PANIER[id]; total += prixU(p)*q; return `• ${p.nom} x${q} = ${fmt(prixU(p)*q)} FCFA`; });
-  const msg = [`Bonjour, je souhaite commander chez ${REG.nom} :`, ...l, `Total : ${fmt(total)} FCFA`, "", `Nom : ${nom}`, `Téléphone : ${tel}`, `Mode : ${$("cMode").value}`, adr?`Adresse : ${adr}`:"", $("cNote").value.trim()?`Remarque : ${$("cNote").value.trim()}`:""].filter(Boolean).join("\n");
-  location.href = `https://wa.me/${REG.tel}?text=${encodeURIComponent(msg)}`;
+  const msg = [REG.ctMsg, "Je souhaite commander :", ...l, `Total : ${fmt(total)} FCFA`, "", `Nom : ${nom}`, `Téléphone : ${tel}`, `Mode : ${$("cMode").value}`, adr?`Adresse : ${adr}`:"", $("cNote").value.trim()?`Remarque : ${$("cNote").value.trim()}`:""].filter(Boolean).join("\n");
+  ouvrirWa(msg);
 };
 
 // ===== Photo =====
@@ -415,7 +424,7 @@ function reduire(f,max,q){ return new Promise((ok,ko) => { const img = new Image
 
 // ===== Connexion administrateur =====
 document.querySelectorAll("#admBox [data-t]").forEach(b => b.onclick = () => {
-  ["tProd","tImp","tThe","tReg"].forEach(t => $(t).classList.toggle("hide", t !== b.dataset.t));
+  ["tProd","tImp","tThe","tCon","tReg"].forEach(t => $(t).classList.toggle("hide", t !== b.dataset.t));
   document.querySelectorAll("#admBox [data-t]").forEach(x => x.classList.toggle("on", x === b));
 });
 function afficherEtat(u){ const a = isAdmin(u);
