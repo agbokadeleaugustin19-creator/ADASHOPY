@@ -35,6 +35,10 @@ label{font-weight:700;font-size:14px}
 .total{font-size:20px;font-weight:800;color:var(--gold);margin:10px 0}
 h2,h3{color:var(--gold)}
 .hide{display:none!important}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;font-size:12px;border-width:1.5px}
+.chip i{width:14px;height:14px;border-radius:50%;border:1px solid #888;display:inline-block}
+.chip.on{outline:2px solid var(--gold)}
 .wabtn{display:flex;align-items:center;justify-content:center;gap:10px;background:#25D366!important;color:#fff!important;border-color:transparent!important;font-size:16px}
 .wabtn svg{flex:none}
 #erreur{background:#3a1f1b;border:1px solid var(--ko);color:#ffd6cf;border-radius:12px;padding:10px;font-size:13px;margin-bottom:10px}
@@ -153,11 +157,26 @@ h2,h3{color:var(--gold)}
           <div><label>Prix (FCFA) *</label><input id="pPrix" inputmode="numeric"></div>
           <div><label>Prix promo</label><input id="pPromo" inputmode="numeric"></div>
           <div><label>Catégorie</label><input id="pCat" list="listeCats"></div>
-          <div><label>Stock (quantité)</label><input id="pStock" inputmode="numeric"></div>
+          <div><label>Stock (quantité)</label><input id="pStock" inputmode="decimal"></div>
+          <div><label>Vendu par (unité)</label>
+            <select id="pUnite">
+              <option value="pièce">Pièce / unité</option>
+              <optgroup label="Poids"><option>kg</option><option>g</option><option>tonne</option></optgroup>
+              <optgroup label="Volume"><option>L</option><option>mL</option></optgroup>
+              <optgroup label="Longueur"><option>m</option><option>cm</option><option>mm</option><option>km</option></optgroup>
+              <optgroup label="Surface"><option>m²</option></optgroup>
+              <optgroup label="Conditionnement"><option>paire</option><option>douzaine</option><option>paquet</option><option>carton</option><option>sac</option><option>boîte</option><option>bouteille</option></optgroup>
+              <option value="autre">Autre…</option>
+            </select></div>
+          <div><label>Quantité par clic (pas)</label><input id="pPas" inputmode="decimal" placeholder="Ex. 1 ou 0.5"></div>
           <div><label>Marque</label><input id="pMarque"></div>
           <div><label>Référence / code</label><input id="pRef"></div>
         </div>
         <datalist id="listeCats"></datalist>
+        <div id="uAutreBox" class="hide"><label>Votre unité</label><input id="pUniteAutre" placeholder="Ex. rouleau, tas, bidon…"></div>
+        <label>Couleurs disponibles (séparées par des virgules)</label>
+        <input id="pCoul" placeholder="Rouge, Bleu, Noir">
+        <div class="chips" id="coulRap"></div>
         <label>Fournisseur</label><input id="pFour" placeholder="Nom et téléphone du fournisseur">
         <label>Description</label><textarea id="pDesc" rows="3"></textarea>
         <label>Photo</label>
@@ -356,6 +375,15 @@ $("ctWa").onclick = () => ouvrirWa(REG.ctMsg);
 // ===== Catalogue =====
 if (db) db.ref("produits").on("value", s => { PRODUITS = s.val() || {}; majCatalogue(); majAdminListe(); },
   e => alerteErreur("Lecture du catalogue refusée : " + e.message));
+const COUL = {rouge:"#e53935",bleu:"#1e88e5","bleu ciel":"#87ceeb","bleu marine":"#1a237e",vert:"#43a047",jaune:"#fdd835",noir:"#111111",blanc:"#ffffff",rose:"#ec407a",orange:"#fb8c00",violet:"#8e24aa",marron:"#6d4c41",gris:"#9e9e9e",beige:"#d7c4a3",or:"#d4af37",argent:"#c0c0c0",turquoise:"#26c6da",bordeaux:"#7b1e3a",kaki:"#8a8a52"};
+const listeCoul = p => String((p && p.couleurs) || "").split(",").map(x => x.trim()).filter(Boolean);
+const puce = c => `<i style="background:${COUL[c.toLowerCase()] || "transparent"}"></i>`;
+const uni = p => (p && p.unite && p.unite !== "pièce") ? p.unite : "";
+const pasDe = p => Number(p && p.pas) > 0 ? Number(p.pas) : 1;
+const fmtQ = n => Number(n).toLocaleString("fr-FR", {maximumFractionDigits:3});
+const arr = n => Math.round(n*1000)/1000;
+const idDe = k => k.split("|")[0], coulDe = k => k.split("|")[1] || "";
+let SELCOUL = {};
 const publie = p => p && p.publie !== false;
 const enStock = p => p.disponible !== false && !(p.stock !== "" && p.stock != null && Number(p.stock) <= 0);
 function majCatalogue(){
@@ -372,12 +400,17 @@ function majCatalogue(){
       ${p.vedette ? `<span class="badge" style="background:var(--gold);color:var(--bg)">⭐</span>` : promo ? `<span class="badge">PROMO</span>` : ""}
       ${p.photo ? `<img src="${p.photo}" alt="${esc(p.nom)}">` : `<div class="sansphoto">Pas de photo</div>`}
       <h3>${esc(p.nom)}</h3>
-      <div class="prix">${fmt(promo ? p.promo : p.prix)} FCFA${promo ? `<span class="old">${fmt(p.prix)}</span>` : ""}</div>
+      <div class="prix">${fmt(promo ? p.promo : p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""}${promo ? `<span class="old">${fmt(p.prix)}</span>` : ""}</div>
       ${p.marque ? `<div class="muted">${esc(p.marque)}</div>` : ""}
       ${p.description ? `<div class="muted">${esc(p.description)}</div>` : ""}
+      ${listeCoul(p).length ? `<div class="chips">${listeCoul(p).map(c => `<button type="button" class="chip ${SELCOUL[id]===c?"on":""}" data-id="${id}" data-c="${esc(c)}">${puce(c)}${esc(c)}</button>`).join("")}</div>` : ""}
       ${enStock(p) ? `<button class="pri" style="width:100%;margin-top:8px" data-ajout="${id}">Ajouter au panier</button>` : `<div class="ko" style="margin-top:6px">Épuisé</div>`}
     </div>`; }).join("");
-  $("prods").querySelectorAll("[data-ajout]").forEach(b => b.onclick = () => { ajouter(b.dataset.ajout); b.textContent = "✓ Ajouté"; });
+  $("prods").querySelectorAll(".chip").forEach(b => b.onclick = () => { SELCOUL[b.dataset.id] = b.dataset.c; b.parentNode.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b)); });
+  $("prods").querySelectorAll("[data-ajout]").forEach(b => b.onclick = () => {
+    const id = b.dataset.ajout, p = PRODUITS[id];
+    if (listeCoul(p).length && !SELCOUL[id]) return alert("Choisissez d’abord une couleur.");
+    ajouter(id, SELCOUL[id] || ""); b.textContent = "✓ Ajouté"; });
   $("vide").textContent = liste.length ? "" : "Aucun produit à afficher pour l’instant.";
 }
 $("recherche").oninput = majCatalogue;
@@ -385,28 +418,29 @@ $("recherche").oninput = majCatalogue;
 // ===== Panier =====
 const prixU = p => (p.promo > 0 && p.promo < p.prix) ? p.promo : p.prix;
 function sauverPanier(){ lsSet("panier", PANIER); majNb(); }
-function majNb(){ $("nbPan").textContent = Object.values(PANIER).reduce((s,q)=>s+q,0); }
-function ajouter(id){ PANIER[id] = (PANIER[id]||0)+1; sauverPanier(); }
-function changer(id,d){ PANIER[id] = (PANIER[id]||0)+d; if (PANIER[id]<=0) delete PANIER[id]; sauverPanier(); majPanier(); }
+function majNb(){ $("nbPan").textContent = Object.keys(PANIER).length; }
+function ajouter(id, c){ const k = id + (c ? "|" + c : ""); PANIER[k] = arr((PANIER[k]||0) + pasDe(PRODUITS[id])); sauverPanier(); }
+function fixer(k, v){ v = arr(parseFloat(String(v).replace(",","."))); if (!(v > 0)) delete PANIER[k]; else PANIER[k] = v; sauverPanier(); majPanier(); }
 function majPanier(){
-  const ids = Object.keys(PANIER).filter(id => publie(PRODUITS[id]));
+  const ids = Object.keys(PANIER).filter(k => publie(PRODUITS[idDe(k)]));
   if (!ids.length){ $("lignes").innerHTML = `<p class="muted">Votre panier est vide.</p>`; $("total").textContent = "0"; majNb(); return; }
   let total = 0;
-  $("lignes").innerHTML = ids.map(id => { const p = PRODUITS[id], q = PANIER[id]; total += prixU(p)*q;
-    return `<div class="line"><div><b>${esc(p.nom)}</b><div class="muted">${fmt(prixU(p))} FCFA × ${q}</div></div>
-    <div style="display:flex;gap:6px;align-items:center"><button class="sm" data-m="${id}">−</button><span>${q}</span><button class="sm" data-p="${id}">+</button></div></div>`; }).join("");
-  $("lignes").querySelectorAll("[data-m]").forEach(b => b.onclick = () => changer(b.dataset.m,-1));
-  $("lignes").querySelectorAll("[data-p]").forEach(b => b.onclick = () => changer(b.dataset.p,1));
-  $("total").textContent = fmt(total); majNb();
+  $("lignes").innerHTML = ids.map(k => { const p = PRODUITS[idDe(k)], q = PANIER[k], c = coulDe(k); total += prixU(p)*q;
+    return `<div class="line"><div><b>${esc(p.nom)}</b>${c ? ` <span class="muted">· ${esc(c)}</span>` : ""}<div class="muted">${fmt(prixU(p))} FCFA${uni(p) ? " / " + esc(uni(p)) : ""} × ${fmtQ(q)} ${esc(uni(p))}</div></div>
+    <div style="display:flex;gap:6px;align-items:center"><button class="sm" data-m="${esc(k)}">−</button><input class="qte" type="number" min="0" step="any" value="${q}" data-k="${esc(k)}" style="width:74px;margin:0;padding:6px;text-align:center"><button class="sm" data-p="${esc(k)}">+</button></div></div>`; }).join("");
+  $("lignes").querySelectorAll("[data-m]").forEach(b => b.onclick = () => fixer(b.dataset.m, PANIER[b.dataset.m] - pasDe(PRODUITS[idDe(b.dataset.m)])));
+  $("lignes").querySelectorAll("[data-p]").forEach(b => b.onclick = () => fixer(b.dataset.p, PANIER[b.dataset.p] + pasDe(PRODUITS[idDe(b.dataset.p)])));
+  $("lignes").querySelectorAll(".qte").forEach(i => i.onchange = () => fixer(i.dataset.k, i.value));
+  $("total").textContent = fmt(Math.round(total)); majNb();
 }
 $("commander").onclick = () => {
-  const ids = Object.keys(PANIER).filter(id => publie(PRODUITS[id]));
+  const ids = Object.keys(PANIER).filter(k => publie(PRODUITS[idDe(k)]));
   if (!ids.length) return alert("Votre panier est vide.");
   const nom = $("cNom").value.trim(), tel = $("cTel").value.trim(), adr = $("cAdr").value.trim();
   if (!nom || !tel) return alert("Indiquez votre nom et votre téléphone.");
   let total = 0;
-  const l = ids.map(id => { const p = PRODUITS[id], q = PANIER[id]; total += prixU(p)*q; return `• ${p.nom} x${q} = ${fmt(prixU(p)*q)} FCFA`; });
-  const msg = [REG.ctMsg, "Je souhaite commander :", ...l, `Total : ${fmt(total)} FCFA`, "", `Nom : ${nom}`, `Téléphone : ${tel}`, `Mode : ${$("cMode").value}`, adr?`Adresse : ${adr}`:"", $("cNote").value.trim()?`Remarque : ${$("cNote").value.trim()}`:""].filter(Boolean).join("\n");
+  const l = ids.map(k => { const p = PRODUITS[idDe(k)], q = PANIER[k], c = coulDe(k); total += prixU(p)*q; return `• ${p.nom}${c ? " (" + c + ")" : ""} : ${fmtQ(q)} ${uni(p) || "x"} = ${fmt(Math.round(prixU(p)*q))} FCFA`; });
+  const msg = [REG.ctMsg, "Je souhaite commander :", ...l, `Total : ${fmt(Math.round(total))} FCFA`, "", `Nom : ${nom}`, `Téléphone : ${tel}`, `Mode : ${$("cMode").value}`, adr?`Adresse : ${adr}`:"", $("cNote").value.trim()?`Remarque : ${$("cNote").value.trim()}`:""].filter(Boolean).join("\n");
   ouvrirWa(msg);
 };
 
@@ -479,14 +513,19 @@ $("iGo").onclick = async () => { if (!db || !IMPORT.length) return; const lot = 
   catch(e){ $("iMsg").innerHTML = `<span class="ko">Refusé : ${esc(e.code||e.message)}</span>`; } };
 
 // ===== Gestion des produits =====
-const CH = {pNom:"nom",pPrix:"prix",pPromo:"promo",pCat:"categorie",pStock:"stock",pMarque:"marque",pRef:"ref",pFour:"fournisseur",pDesc:"description"};
+const CH = {pPas:"pas",pCoul:"couleurs",pNom:"nom",pPrix:"prix",pPromo:"promo",pCat:"categorie",pStock:"stock",pMarque:"marque",pRef:"ref",pFour:"fournisseur",pDesc:"description"};
 function remplirFormulaire(p){
   Object.entries(CH).forEach(([id,k]) => $(id).value = p && p[k] != null ? p[k] : "");
-  $("pPublie").checked = p ? p.publie !== false : true; $("pDispo").checked = p ? p.disponible !== false : true; $("pVedette").checked = !!(p && p.vedette);
+  $("pPublie").checked = p ? p.publie !== false : true; const u = p && p.unite ? p.unite : "pièce", ok = [...$("pUnite").options].some(o => o.value === u);
+  $("pUnite").value = ok ? u : "autre"; $("pUniteAutre").value = ok ? "" : u; $("uAutreBox").classList.toggle("hide", ok);
+  $("pDispo").checked = p ? p.disponible !== false : true; $("pVedette").checked = !!(p && p.vedette);
   PHOTO = ""; $("pPhoto").value = ""; $("pCam").value = "";
   $("apercu").src = p && p.photo ? p.photo : ""; $("apercu").classList.toggle("hide", !(p && p.photo));
   $("admTitre").textContent = p ? "Modifier le produit" : "Ajouter un produit"; $("pAnnul").classList.toggle("hide", !p);
 }
+$("pUnite").onchange = () => $("uAutreBox").classList.toggle("hide", $("pUnite").value !== "autre");
+$("coulRap").innerHTML = Object.keys(COUL).map(c => { const n = c[0].toUpperCase() + c.slice(1); return `<button type="button" class="chip" data-n="${n}">${puce(c)}${n}</button>`; }).join("");
+$("coulRap").querySelectorAll(".chip").forEach(b => b.onclick = () => { const l = $("pCoul").value.split(",").map(x => x.trim()).filter(Boolean); if (!l.some(x => x.toLowerCase() === b.dataset.n.toLowerCase())) l.push(b.dataset.n); $("pCoul").value = l.join(", "); });
 $("pAnnul").onclick = () => { EDITION = null; remplirFormulaire(null); };
 $("pSave").onclick = async () => {
   if (!db) return;
@@ -495,7 +534,9 @@ $("pSave").onclick = async () => {
   if (!nom || !(prix > 0)) { $("pMsg").textContent = "Le nom et un prix supérieur à 0 sont obligatoires."; return; }
   const photo = PHOTO || (EDITION && PRODUITS[EDITION].photo) || "";
   if (photo.length > 300000) { $("pMsg").textContent = "Photo trop lourde."; return; }
-  const d = {nom, prix, promo:num("pPromo"), stock:num("pStock"), categorie:$("pCat").value.trim()||"Autres", marque:$("pMarque").value.trim(), ref:$("pRef").value.trim(), fournisseur:$("pFour").value.trim(),
+  const unite = $("pUnite").value === "autre" ? ($("pUniteAutre").value.trim() || "pièce") : $("pUnite").value;
+  const couleurs = [...new Set($("pCoul").value.split(",").map(x => x.trim()).filter(Boolean))].join(", ");
+  const d = {unite, pas:num("pPas") > 0 ? num("pPas") : 1, couleurs, nom, prix, promo:num("pPromo"), stock:num("pStock"), categorie:$("pCat").value.trim()||"Autres", marque:$("pMarque").value.trim(), ref:$("pRef").value.trim(), fournisseur:$("pFour").value.trim(),
     description:$("pDesc").value.trim(), publie:$("pPublie").checked, disponible:$("pDispo").checked, vedette:$("pVedette").checked, photo, t:Date.now()};
   try { if (EDITION) await db.ref("produits/"+EDITION).set(d); else await db.ref("produits").push(d);
     $("pMsg").innerHTML = `<span class="ok">${d.publie ? "Enregistré et publié sur l’accueil." : "Enregistré en brouillon (non visible par les clients)."}</span>`; EDITION = null; remplirFormulaire(null); }
@@ -503,7 +544,7 @@ $("pSave").onclick = async () => {
 };
 function majAdminListe(){
   const el = $("admList"); const l = Object.entries(PRODUITS).sort((a,b) => (b[1].t||0)-(a[1].t||0));
-  el.innerHTML = l.length ? l.map(([id,p]) => `<div class="line"><div style="min-width:0"><b>${esc(p.nom)}</b> <span class="${p.publie===false?"ko":"ok"}">${p.publie===false?"● Brouillon":"● Publié"}</span><div class="muted">${fmt(p.prix)} FCFA · ${esc(p.categorie||"")}${p.stock!==""&&p.stock!=null?" · stock "+p.stock:""}${p.fournisseur?" · "+esc(p.fournisseur):""}</div></div>
+  el.innerHTML = l.length ? l.map(([id,p]) => `<div class="line"><div style="min-width:0"><b>${esc(p.nom)}</b> <span class="${p.publie===false?"ko":"ok"}">${p.publie===false?"● Brouillon":"● Publié"}</span><div class="muted">${fmt(p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""} · ${esc(p.categorie||"")}${listeCoul(p).length ? " · " + esc(listeCoul(p).join("/")) : ""}${p.stock!==""&&p.stock!=null?" · stock "+p.stock:""}${p.fournisseur?" · "+esc(p.fournisseur):""}</div></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="sm ${p.publie===false?"pri":""}" data-pub="${id}">${p.publie===false?"Publier":"Dépublier"}</button><button class="sm" data-edit="${id}">Modifier</button><button class="sm" data-dispo="${id}">${p.disponible===false?"Remettre":"Épuisé"}</button><button class="sm danger" data-del="${id}">Supprimer</button></div></div>`).join("") : `<p class="muted">Aucun produit.</p>`;
   el.querySelectorAll("[data-pub]").forEach(b => b.onclick = () => db.ref("produits/"+b.dataset.pub+"/publie").set(PRODUITS[b.dataset.pub].publie === false));
   el.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => { EDITION = b.dataset.edit; remplirFormulaire(PRODUITS[EDITION]); scrollTo({top:0,behavior:"smooth"}); });
