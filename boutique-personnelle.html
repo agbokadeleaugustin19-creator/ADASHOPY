@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Boutique en ligne Adashopy</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f130f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Adashopy">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
 <style>
 :root{--bg:#0f130f;--card:#1a1f18;--in:#232a20;--tx:#f1e6c4;--gold:#f0c85a;--ok:#3ddc5a;--ko:#ff6b5e;--bd:#353a2c;--btn:#3ddc5a;--btnt:#0d1a0f;--bgimg:none}
 *{box-sizing:border-box}
@@ -62,6 +70,8 @@ h2,h3{color:var(--gold)}
 body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--bgimg) center/cover no-repeat;pointer-events:none}
 .fonds{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;margin:6px 0}.fonds button{height:56px;padding:0 4px;border-radius:10px;font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 3px #000;border:2px solid var(--bd);background-size:cover;line-height:1.1}.fonds button.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
 #thPrev img{width:100%;max-height:140px;object-fit:cover;border-radius:10px;margin-top:8px;display:block}
+#instBar{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:8px 10px;border:1px solid var(--gold);border-radius:14px;background:var(--card);font-size:13px}#instBar span{flex:1}#instBar button{padding:7px 12px;font-size:13px}
+#instBox{position:fixed;inset:0;z-index:95;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center}#instBox>div{background:var(--card);color:var(--tx);border:1px solid var(--gold);border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));width:100%;max-width:520px}#instBox ol{padding-left:20px;line-height:1.6;margin:10px 0}
 #pied{margin-top:auto;text-align:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--bd);color:var(--tx);opacity:.7;font-size:10px;line-height:1.2;background:var(--bg)}#pied b{color:var(--gold);font-weight:700}
 </style>
 </head>
@@ -73,6 +83,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--bgimg
 </header>
 <div id="ov" class="hide"></div>
 <div id="toast" class="hide" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card);color:var(--tx);border:1px solid var(--gold);border-radius:999px;padding:8px 16px;z-index:50;font-weight:700"></div>
+<div id="instBox" class="hide"><div><b style="font-size:17px">📲 Installer l’application</b><div id="instTxt"></div><button type="button" id="instOk" style="width:100%">J’ai compris</button></div></div>
 <div id="imgBox" class="hide" style="position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:90;display:flex;align-items:center;justify-content:center"><button type="button" id="imgClose" aria-label="Fermer" style="position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;padding:0;border-radius:50%;font-size:22px;background:rgba(0,0,0,.6);color:#fff;border-color:#fff">✕</button><img id="imgBig" alt="" style="max-width:100%;max-height:100%;object-fit:contain"></div>
 <div id="detBox" class="hide" style="position:fixed;inset:0;background:var(--bg);z-index:60;overflow-y:auto">
   <div style="max-width:640px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 40px">
@@ -86,10 +97,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--bgimg
   <button data-v="vCon">📞 Contactez-nous</button>
   <button data-v="vApr">ℹ️ À propos de nous</button>
   <button data-v="vAdm">🔐 Administrateur</button>
+  <button id="instMenu" class="hide">📲 Installer l’application</button>
 </nav>
 
 <div class="wrap">
 <div id="erreur" class="hide"></div>
+<div id="instBar" class="hide"><span>📲 Installez la boutique sur votre téléphone</span><button id="instBtn">Installer</button><button class="ic" id="instX" aria-label="Fermer" style="font-size:16px">✕</button></div>
 
 <!-- ACCUEIL : produits visibles tout de suite -->
 <section id="vAcc">
@@ -380,6 +393,7 @@ function appliquerTheme(t, sansRemplir){
   [["bg","--bg"],["card","--card"],["tx","--tx"],["gold","--gold"],["btn","--btn"],["btnt","--btnt"]].forEach(([k,v]) => { if (okCouleur(t[k])) r.setProperty(v, t[k]); });
   r.setProperty("--in", okCouleur(t.card) ? `color-mix(in srgb, ${t.card} 88%, ${t.tx||"#888"})` : "#232a20");
   r.setProperty("--bgimg", fondCss(t));
+  { const m = document.querySelector('meta[name="theme-color"]'); if (m && okCouleur(t.bg)) m.setAttribute("content", t.bg); }
   if (!sansRemplir) remplirTheme(t);
 }
 function majFondsUI(){
@@ -764,6 +778,37 @@ function majAdminListe(){
 }
 if (location.hash.toLowerCase().includes("admin")) montrer("vAdm");
 majNb(); majCatalogue();
+
+/* ===== Installation de l'application (PWA) ===== */
+(function(){
+  const dejaInstallee = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  let evt = null;
+  if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(() => {});
+  function majBoutons(){
+    const peut = !dejaInstallee();
+    $("instMenu").classList.toggle("hide", !peut);
+    $("instBar").classList.toggle("hide", !peut || lsGet("instX", 0) > Date.now());
+  }
+  function aide(){
+    $("instTxt").innerHTML = ios
+      ? `<ol><li>Ouvrez cette page avec <b>Safari</b>.</li><li>Touchez le bouton <b>Partager</b> (carré avec une flèche ↑).</li><li>Choisissez <b>« Sur l’écran d’accueil »</b>, puis <b>Ajouter</b>.</li></ol>`
+      : `<ol><li>Ouvrez cette page avec <b>Chrome</b>.</li><li>Touchez le menu <b>⋮</b> en haut à droite.</li><li>Choisissez <b>« Installer l’application »</b> ou <b>« Ajouter à l’écran d’accueil »</b>.</li></ol>`;
+    $("instBox").classList.remove("hide");
+  }
+  async function installer(){
+    fermer();
+    if (evt) { evt.prompt(); try { await evt.userChoice; } catch(_){} evt = null; majBoutons(); }
+    else aide();
+  }
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); evt = e; majBoutons(); });
+  window.addEventListener("appinstalled", () => { evt = null; majBoutons(); });
+  $("instBtn").onclick = installer; $("instMenu").onclick = installer;
+  $("instX").onclick = () => { lsSet("instX", Date.now() + 7*864e5); majBoutons(); };
+  $("instOk").onclick = () => $("instBox").classList.add("hide");
+  $("instBox").onclick = e => { if (e.target.id === "instBox") $("instBox").classList.add("hide"); };
+  majBoutons();
+})();
 </script>
 </body>
 </html>
