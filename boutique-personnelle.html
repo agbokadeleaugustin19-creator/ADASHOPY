@@ -35,6 +35,15 @@ label{font-weight:700;font-size:14px}
 .total{font-size:20px;font-weight:800;color:var(--gold);margin:10px 0}
 h2,h3{color:var(--gold)}
 .hide{display:none!important}
+.av{padding:8px 0;border-bottom:1px solid var(--bd)}
+.rep{margin:6px 0 0 14px;padding:6px 10px;background:var(--in);border-radius:10px;font-size:14px}
+.carw{position:relative}.car{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;border-radius:14px;scrollbar-width:none}.car::-webkit-scrollbar{display:none}
+.car>div{flex:0 0 100%;scroll-snap-align:center;aspect-ratio:1/1;background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.car img{width:100%;height:100%;object-fit:contain}
+.ar{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5)!important;color:#fff!important;border:0!important;font-size:24px;width:38px;height:38px;padding:0!important;border-radius:50%}.ar.l{left:6px}.ar.r{right:6px}
+.dots{display:flex;justify-content:center;gap:6px;margin:8px 0}.dots i{width:8px;height:8px;border-radius:50%;background:var(--bd)}.dots i.on{background:var(--gold)}
+.playbig{position:absolute;inset:0;margin:auto;width:72px;height:72px;border-radius:50%;padding:0;font-size:30px;background:rgba(0,0,0,.65);color:#fff;border:2px solid #fff}
+.mini{position:relative}.mini img{width:72px;height:72px;object-fit:cover;border-radius:10px;display:block}.mini b{position:absolute;top:-6px;right:-6px;background:var(--ko);color:#fff;border-radius:50%;width:22px;height:22px;text-align:center;line-height:22px;font-size:12px;cursor:pointer}.mini u{position:absolute;bottom:2px;left:2px;background:var(--gold);color:var(--bg);font-size:10px;text-decoration:none;padding:0 4px;border-radius:6px;cursor:pointer}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
 .chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;font-size:12px;border-width:1.5px}
 .chip i{width:14px;height:14px;border-radius:50%;border:1px solid #888;display:inline-block}
@@ -56,6 +65,12 @@ h2,h3{color:var(--gold)}
 </header>
 <div id="ov" class="hide"></div>
 <div id="toast" class="hide" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card);color:var(--tx);border:1px solid var(--gold);border-radius:999px;padding:8px 16px;z-index:50;font-weight:700"></div>
+<div id="detBox" class="hide" style="position:fixed;inset:0;background:var(--bg);z-index:60;overflow-y:auto">
+  <div style="max-width:640px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 40px">
+    <button class="sm" id="detClose">← Retour</button>
+    <div id="detBody" style="margin-top:10px"></div>
+  </div>
+</div>
 <nav id="menu">
   <h3 style="margin:0 0 10px">Menu</h3>
   <button data-v="vAcc">🏠 Accueil</button>
@@ -158,6 +173,8 @@ h2,h3{color:var(--gold)}
           <div><label>Prix promo</label><input id="pPromo" inputmode="numeric"></div>
           <div><label>Catégorie</label><input id="pCat" list="listeCats"></div>
           <div><label>Stock (quantité)</label><input id="pStock" inputmode="decimal"></div>
+          <div><label>Étoiles (0 à 5)</label><input id="pEtoiles" inputmode="decimal" placeholder="Ex. 4.5"></div>
+          <div><label>Déjà vendu (nombre)</label><input id="pVentes" inputmode="numeric" placeholder="Ex. 120"></div>
           <div><label>Vendu par (unité)</label>
             <select id="pUnite">
               <option value="pièce">Pièce / unité</option>
@@ -177,16 +194,25 @@ h2,h3{color:var(--gold)}
         <label>Couleurs disponibles (séparées par des virgules)</label>
         <input id="pCoul" placeholder="Rouge, Bleu, Noir">
         <div class="chips" id="coulRap"></div>
-        <label>Fournisseur</label><input id="pFour" placeholder="Nom et téléphone du fournisseur">
         <label>Description</label><textarea id="pDesc" rows="3"></textarea>
         <label>Photo</label>
         <div style="display:flex;gap:8px;margin:4px 0 6px">
           <button type="button" id="bCam" style="flex:1">📷 Photo</button>
           <button type="button" id="bGal" style="flex:1">🖼️ Galerie</button>
         </div>
-        <input id="pPhoto" type="file" accept="image/*" class="hide">
+        <input id="pPhoto" type="file" accept="image/*" multiple class="hide">
         <input id="pCam" type="file" accept="image/*" capture="environment" class="hide">
-        <img id="apercu" class="hide" style="width:120px;border-radius:10px">
+        <p class="muted" style="margin:2px 0">Jusqu’à 6 photos. ★ = photo principale, ✕ = retirer.</p>
+        <div id="miniatures" class="chips" style="gap:10px"></div>
+        <label>Vidéo du produit (facultatif)</label>
+        <input id="pVideo" placeholder="Lien YouTube ou lien direct d’une vidéo (https://…)">
+        <div style="display:flex;gap:8px;margin:4px 0 6px;flex-wrap:wrap">
+          <button type="button" id="bVid" style="flex:1">🎬 Importer une vidéo</button>
+          <button type="button" id="bVidX" class="danger" style="flex:1">Retirer la vidéo</button>
+        </div>
+        <input id="pVidFile" type="file" accept="video/*" class="hide">
+        <p id="vidMsg" class="muted"></p>
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pAuto" style="width:auto;margin:0"> Lecture automatique de la vidéo (sans le son)</label>
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pPublie" checked style="width:auto;margin:0"> Publier sur la boutique (visible par les clients)</label>
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pDispo" checked style="width:auto;margin:0"> Disponible à la vente</label>
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pVedette" style="width:auto;margin:0"> Mettre en avant ⭐</label>
@@ -259,6 +285,7 @@ h2,h3{color:var(--gold)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyC_WjjxkXbBz_nj142C-2k2BBXGIbS7tOI",
@@ -286,7 +313,7 @@ const alerteErreur = m => { $("erreur").textContent = m; $("erreur").classList.r
 const lsGet = (k,d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch(e){ return d; } };
 const lsSet = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
 
-let PRODUITS = {}, REG = {...DEF_REG}, PANIER = lsGet("panier",{}), CAT = "", EDITION = null, PHOTO = "", db = null, auth = null;
+let PRODUITS = {}, REG = {...DEF_REG}, PANIER = lsGet("panier",{}), CAT = "", EDITION = null, PHOTOS = [], db = null, auth = null;
 try { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); auth = firebase.auth(); }
 catch(e){ alerteErreur("Firebase : " + e.message); }
 if (location.protocol === "file:") alerteErreur("Ouvrez l’application depuis son adresse en ligne (https://…) pour que la connexion administrateur fonctionne.");
@@ -384,6 +411,109 @@ const fmtQ = n => Number(n).toLocaleString("fr-FR", {maximumFractionDigits:3});
 const arr = n => Math.round(n*1000)/1000;
 const idDe = k => k.split("|")[0], coulDe = k => k.split("|")[1] || "";
 let SELCOUL = {};
+const ytId = u => { const m = String(u||"").match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/))([\w-]{11})/); return m ? m[1] : ""; };
+const urlVideo = u => /^https:\/\/[^\s"'<>]+$/i.test(u||"");
+const photosDe = p => (p.photos && p.photos.length) ? p.photos : (p.photo ? [p.photo] : []);
+let DET = null;
+const etoilesTxt = r => { const n = Math.round(Math.max(0, Math.min(5, Number(r) || 0))); return "★".repeat(n) + "☆".repeat(5 - n); };
+function montrerVideo(p, play){
+  const el = $("vSlide"); if (!el) return; const y = ytId(p.video);
+  if (y) {
+    el.innerHTML = play
+      ? `<iframe src="https://www.youtube.com/embed/${y}?autoplay=1&rel=0${p.autoplay ? "&mute=1" : ""}" style="width:100%;height:100%;border:0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+      : `<img src="https://img.youtube.com/vi/${y}/hqdefault.jpg" alt="" style="object-fit:cover"><button type="button" class="playbig" aria-label="Jouer la vidéo">▶</button>`;
+    const b = el.querySelector(".playbig"); if (b) b.onclick = () => montrerVideo(p, true);
+  } else {
+    let v = el.querySelector("video");
+    if (!v) { v = document.createElement("video"); v.src = p.video; v.controls = true; v.playsInline = true; v.preload = "metadata"; v.style.cssText = "width:100%;height:100%;object-fit:contain;background:#000"; el.appendChild(v); }
+    if (play) { v.muted = !!p.autoplay; v.play().catch(() => {}); } else v.pause();
+  }
+}
+function ouvrirDetail(id){
+  const p = PRODUITS[id]; if (!p) return;
+  const ph = photosDe(p), vid = urlVideo(p.video), n = ph.length + (vid ? 1 : 0), promo = p.promo > 0 && p.promo < p.prix, cl = listeCoul(p);
+  DET = {id, last:-1, n, vid, p};
+  const sl = ph.map(x => `<div><img src="${x}" alt=""></div>`).join("") + (vid ? `<div id="vSlide"></div>` : "") || `<div class="sansphoto" style="width:100%">Pas de photo</div>`;
+  $("detBody").innerHTML = `<div class="carw"><div class="car" id="car">${sl}</div>${n > 1 ? `<button type="button" class="ar l" id="arL">‹</button><button type="button" class="ar r" id="arR">›</button>` : ""}</div>
+    <div class="dots">${Array.from({length:Math.max(n,1)}, (_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div>
+    <h2 style="margin:6px 0 2px">${esc(p.nom)}</h2>
+    <div class="prix" style="font-size:20px">${fmt(promo ? p.promo : p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""}${promo ? `<span class="old">${fmt(p.prix)}</span>` : ""}</div>
+    ${(p.etoiles > 0 || p.ventes > 0) ? `<div style="margin:6px 0">${p.etoiles > 0 ? `<span style="color:var(--gold);font-size:18px">${etoilesTxt(p.etoiles)}</span> <b>${fmtQ(p.etoiles)}/5</b>` : ""}${p.ventes > 0 ? `${p.etoiles > 0 ? " · " : ""}🛒 ${fmtQ(p.ventes)} ${p.ventes > 1 ? "personnes ont déjà acheté ce produit" : "personne a déjà acheté ce produit"}` : ""}</div>` : ""}
+    ${p.marque ? `<div class="muted">${esc(p.marque)}</div>` : ""}
+    ${p.description ? `<p style="white-space:pre-wrap">${esc(p.description)}</p>` : ""}
+    ${cl.length ? `<div class="chips">${cl.map(c => `<button type="button" class="chip ${SELCOUL[id]===c?"on":""}" data-c="${esc(c)}">${puce(c)}${esc(c)}</button>`).join("")}</div>` : ""}
+    ${enStock(p) ? `<button class="pri" id="detAdd" style="width:100%;margin-top:8px">Ajouter au panier</button>` : `<div class="ko">Épuisé</div>`}
+    <div class="card" style="margin-top:14px"><b>❓ Une question sur ce produit ?</b>
+      <textarea id="qTxt" rows="2" placeholder="Écrivez ce que vous souhaitez savoir (facultatif)"></textarea>
+      <button class="pri wabtn" id="qSend" style="width:100%">${WA_ICON}<span>Poser ma question sur WhatsApp</span></button></div>
+    <h3 style="margin:16px 0 4px">💬 Avis des clients</h3>
+    <div id="avList" class="muted">Chargement…</div>
+    <div class="card" style="margin-top:10px"><b>Laisser mon avis</b>
+      <input id="avNom" placeholder="Votre nom" maxlength="40" style="margin-top:8px">
+      <select id="avNote"><option value="">Note (facultatif)</option><option value="5">★★★★★ Excellent</option><option value="4">★★★★☆ Très bien</option><option value="3">★★★☆☆ Correct</option><option value="2">★★☆☆☆ Moyen</option><option value="1">★☆☆☆☆ Mauvais</option></select>
+      <textarea id="avTxt" rows="3" maxlength="500" placeholder="Votre avis sur ce produit"></textarea>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="avAchat" style="width:auto;margin:0"> J’ai acheté ce produit</label>
+      <div class="two" style="margin:8px 0"><button type="button" class="sm" id="avPhC">📸 Prendre une photo</button><button type="button" class="sm" id="avPh">🖼️ Choisir une photo</button></div>
+      <input id="avPhF" type="file" accept="image/*" class="hide"><input id="avPhCam" type="file" accept="image/*" capture="environment" class="hide">
+      <div id="avMini" style="margin-bottom:8px"></div>
+      <button class="pri" id="avSend" style="width:100%">Publier mon avis</button>
+      <p id="avMsg" class="muted"></p></div>`;
+  $("detBox").classList.remove("hide"); $("detBox").scrollTop = 0;
+  const car = $("car");
+  if (vid) montrerVideo(p, false);
+  car.onscroll = () => { const i = Math.round(car.scrollLeft / car.clientWidth); if (i !== DET.last) majSlide(i); };
+  if ($("arL")) { $("arL").onclick = () => car.scrollBy({left:-car.clientWidth, behavior:"smooth"}); $("arR").onclick = () => car.scrollBy({left:car.clientWidth, behavior:"smooth"}); }
+  $("detBody").querySelectorAll(".chip").forEach(b => b.onclick = () => { SELCOUL[id] = b.dataset.c; $("detBody").querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b)); });
+  if ($("detAdd")) $("detAdd").onclick = () => { if (cl.length && !SELCOUL[id]) return alert("Choisissez d’abord une couleur."); ajouter(id, SELCOUL[id] || ""); $("detAdd").textContent = "✓ Ajouté"; };
+  majSlide(0); brancherQR(p, id);
+}
+function majSlide(i){
+  if (!DET) return; const {n, vid, p} = DET, v = vid && i === n - 1, avant = vid && DET.last === n - 1;
+  if (avant && !v) montrerVideo(p, false);
+  if (v && p.autoplay) montrerVideo(p, true);
+  DET.last = i; $("detBody").querySelectorAll(".dots i").forEach((d, k) => d.classList.toggle("on", k === i));
+}
+$("detClose").onclick = () => { $("detBox").classList.add("hide"); $("detBody").innerHTML = ""; DET = null; if (AV_REF) { AV_REF.off(); AV_REF = null; } };
+let AV_REF = null, AV_PH = "";
+function majAvMini(){ $("avMini").innerHTML = AV_PH ? `<div class="mini"><img src="${AV_PH}" alt=""><b id="avX">✕</b></div>` : ""; if (AV_PH) $("avX").onclick = () => { AV_PH = ""; majAvMini(); }; }
+function voirImg(src){ const z = $("vidZone"); z.innerHTML = `<img src="${src}" alt="" style="width:100%;max-height:80vh;object-fit:contain;border-radius:12px">`; $("vidBox").style.zIndex = 80; $("vidBox").classList.remove("hide"); }
+function brancherQR(p, id){
+  $("qSend").onclick = () => {
+    const q = $("qTxt").value.trim(), prix = fmt(p.promo > 0 && p.promo < p.prix ? p.promo : p.prix) + " FCFA" + (uni(p) ? " / " + uni(p) : "");
+    ouvrirWa([REG.ctMsg, `Je voudrais des renseignements sur ce produit : ${p.nom} (${prix})`, q ? `Ma question : ${q}` : ""].filter(Boolean).join("\n"));
+  };
+  $("avNom").value = lsGet("avNom", ""); $("avAchat").checked = lsGet("achats", []).includes(id); AV_PH = ""; majAvMini();
+  $("avPh").onclick = () => $("avPhF").click(); $("avPhC").onclick = () => $("avPhCam").click();
+  $("avPhF").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    try { const d = await reduire(f, 640, .6); if (d.length > 140000) { $("avMsg").textContent = "Photo trop lourde, choisissez-en une autre."; return; } AV_PH = d; $("avMsg").textContent = ""; majAvMini(); } catch(_){ $("avMsg").textContent = "Photo illisible."; } };
+  $("avPhCam").onchange = e => $("avPhF").onchange(e);
+  if (AV_REF) AV_REF.off(); AV_REF = null;
+  if (db) { AV_REF = db.ref("avis/" + id);
+    AV_REF.on("value", sn => { if (DET && DET.id === id) rendreAvis(id, sn.val() || {}); }, () => { if ($("avList")) $("avList").textContent = "Les avis ne sont pas disponibles pour le moment."; }); }
+  $("avSend").onclick = async () => {
+    const nom = $("avNom").value.trim(), texte = $("avTxt").value.trim(), note = Number($("avNote").value) || 0;
+    if (!nom) return $("avMsg").textContent = "Indiquez votre nom.";
+    if (texte.length < 2) return $("avMsg").textContent = "Écrivez votre avis.";
+    if (Date.now() - lsGet("avT", 0) < 20000) return $("avMsg").textContent = "Patientez quelques secondes avant un nouvel avis.";
+    const o = {nom, texte, t: firebase.database.ServerValue.TIMESTAMP}; if (note) o.note = note; if ($("avAchat").checked) o.achete = true; if (AV_PH) o.photo = AV_PH;
+    try { await db.ref("avis/" + id).push(o); lsSet("avNom", nom); lsSet("avT", Date.now()); $("avTxt").value = ""; $("avNote").value = ""; AV_PH = ""; majAvMini(); $("avMsg").innerHTML = `<span class="ok">Merci, votre avis est publié.</span>`; }
+    catch(e){ $("avMsg").innerHTML = `<span class="ko">Publication impossible (${esc(e.code || e.message)}).</span>`; }
+  };
+}
+function rendreAvis(id, o){
+  const el = $("avList"); if (!el) return;
+  const adm = isAdmin(auth && auth.currentUser), l = Object.entries(o).sort((a, b) => (a[1].t || 0) - (b[1].t || 0));
+  el.innerHTML = l.length ? l.map(([k, a]) =>
+    `<div class="av"><b>${esc(a.nom)}</b> ${a.note ? `<span style="color:var(--gold)">${etoilesTxt(a.note)}</span>` : ""} <span class="muted">${a.t ? new Date(a.t).toLocaleDateString("fr-FR") : ""}</span>
+    ${a.achete ? `<div class="ok" style="font-size:13px">✓ A acheté ce produit</div>` : ""}
+    <div style="white-space:pre-wrap">${esc(a.texte)}</div>
+    ${a.photo ? `<img src="${a.photo}" alt="" data-ph="${k}" style="width:110px;height:110px;object-fit:cover;border-radius:10px;cursor:pointer;margin-top:6px">` : ""}
+    ${a.rep ? `<div class="rep">↳ <b>La boutique</b> : ${esc(a.rep)}</div>` : ""}
+    ${adm ? `<div style="margin-top:4px"><button class="sm" data-r="${k}">Répondre</button> <button class="sm danger" data-d="${k}">Supprimer</button></div>` : ""}</div>`).join("") : `<p class="muted">Aucun avis pour le moment. Soyez le premier !</p>`;
+  el.querySelectorAll("[data-ph]").forEach(im => im.onclick = () => voirImg(o[im.dataset.ph].photo));
+  el.querySelectorAll("[data-r]").forEach(b => b.onclick = () => { const r = prompt("Votre réponse :", (o[b.dataset.r] || {}).rep || ""); if (r !== null) db.ref(`avis/${id}/${b.dataset.r}/rep`).set(r.trim().slice(0, 500) || null); });
+  el.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { if (confirm("Supprimer cet avis ?")) db.ref(`avis/${id}/${b.dataset.d}`).remove(); });
+}
 const publie = p => p && p.publie !== false;
 const enStock = p => p.disponible !== false && !(p.stock !== "" && p.stock != null && Number(p.stock) <= 0);
 function majCatalogue(){
@@ -398,14 +528,16 @@ function majCatalogue(){
     const promo = p.promo > 0 && p.promo < p.prix;
     return `<div class="card prod">
       ${p.vedette ? `<span class="badge" style="background:var(--gold);color:var(--bg)">⭐</span>` : promo ? `<span class="badge">PROMO</span>` : ""}
-      ${p.photo ? `<img src="${p.photo}" alt="${esc(p.nom)}">` : `<div class="sansphoto">Pas de photo</div>`}
-      <h3>${esc(p.nom)}</h3>
+      ${p.photo ? `<img src="${p.photo}" alt="${esc(p.nom)}" data-det="${id}" style="cursor:pointer">` : `<div class="sansphoto" data-det="${id}" style="cursor:pointer">Pas de photo</div>`}
+      <h3 data-det="${id}" style="cursor:pointer">${esc(p.nom)}</h3>
       <div class="prix">${fmt(promo ? p.promo : p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""}${promo ? `<span class="old">${fmt(p.prix)}</span>` : ""}</div>
       ${p.marque ? `<div class="muted">${esc(p.marque)}</div>` : ""}
       ${p.description ? `<div class="muted">${esc(p.description)}</div>` : ""}
+      <div class="muted" data-det="${id}" style="cursor:pointer;margin-top:4px">${photosDe(p).length > 1 ? "📷 " + photosDe(p).length + " " : ""}${urlVideo(p.video) ? "🎬 " : ""}› Voir les détails</div>
       ${listeCoul(p).length ? `<div class="chips">${listeCoul(p).map(c => `<button type="button" class="chip ${SELCOUL[id]===c?"on":""}" data-id="${id}" data-c="${esc(c)}">${puce(c)}${esc(c)}</button>`).join("")}</div>` : ""}
       ${enStock(p) ? `<button class="pri" style="width:100%;margin-top:8px" data-ajout="${id}">Ajouter au panier</button>` : `<div class="ko" style="margin-top:6px">Épuisé</div>`}
     </div>`; }).join("");
+  $("prods").querySelectorAll("[data-det]").forEach(b => b.onclick = () => ouvrirDetail(b.dataset.det));
   $("prods").querySelectorAll(".chip").forEach(b => b.onclick = () => { SELCOUL[b.dataset.id] = b.dataset.c; b.parentNode.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b)); });
   $("prods").querySelectorAll("[data-ajout]").forEach(b => b.onclick = () => {
     const id = b.dataset.ajout, p = PRODUITS[id];
@@ -441,6 +573,7 @@ $("commander").onclick = () => {
   let total = 0;
   const l = ids.map(k => { const p = PRODUITS[idDe(k)], q = PANIER[k], c = coulDe(k); total += prixU(p)*q; return `• ${p.nom}${c ? " (" + c + ")" : ""} : ${fmtQ(q)} ${uni(p) || "x"} = ${fmt(Math.round(prixU(p)*q))} FCFA`; });
   const msg = [REG.ctMsg, "Je souhaite commander :", ...l, `Total : ${fmt(Math.round(total))} FCFA`, "", `Nom : ${nom}`, `Téléphone : ${tel}`, `Mode : ${$("cMode").value}`, adr?`Adresse : ${adr}`:"", $("cNote").value.trim()?`Remarque : ${$("cNote").value.trim()}`:""].filter(Boolean).join("\n");
+  lsSet("achats", [...new Set([...lsGet("achats", []), ...ids.map(idDe)])]);
   ouvrirWa(msg);
 };
 
@@ -448,9 +581,16 @@ $("commander").onclick = () => {
 $("bGal").onclick = () => $("pPhoto").click(); $("bCam").onclick = () => $("pCam").click();
 $("pCam").onchange = e => $("pPhoto").onchange(e);
 $("pPhoto").onchange = async e => {
-  const f = e.target.files[0]; if (!f) return;
-  try { PHOTO = await reduire(f, 800, .72); $("apercu").src = PHOTO; $("apercu").classList.remove("hide"); } catch(_){ $("pMsg").textContent = "Photo illisible."; }
+  const fs = [...e.target.files]; e.target.value = "";
+  for (const f of fs) { if (PHOTOS.length >= 6) { $("pMsg").textContent = "6 photos maximum."; break; }
+    try { PHOTOS.push(await reduire(f, 720, .65)); } catch(_){ $("pMsg").textContent = "Photo illisible."; } }
+  majMini();
 };
+function majMini(){
+  $("miniatures").innerHTML = PHOTOS.map((x,i) => `<div class="mini"><img src="${x}" alt=""><b data-x="${i}">✕</b>${i ? `<u data-st="${i}">★</u>` : `<u>Principale</u>`}</div>`).join("");
+  $("miniatures").querySelectorAll("[data-x]").forEach(b => b.onclick = () => { PHOTOS.splice(+b.dataset.x, 1); majMini(); });
+  $("miniatures").querySelectorAll("[data-st]").forEach(b => b.onclick = () => { PHOTOS.unshift(PHOTOS.splice(+b.dataset.st, 1)[0]); majMini(); });
+}
 function reduire(f,max,q){ return new Promise((ok,ko) => { const img = new Image(), url = URL.createObjectURL(f);
   img.onload = () => { const r = Math.min(1, max/Math.max(img.width,img.height)), c = document.createElement("canvas");
     c.width = Math.round(img.width*r); c.height = Math.round(img.height*r); c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url); ok(c.toDataURL("image/jpeg",q)); };
@@ -513,16 +653,27 @@ $("iGo").onclick = async () => { if (!db || !IMPORT.length) return; const lot = 
   catch(e){ $("iMsg").innerHTML = `<span class="ko">Refusé : ${esc(e.code||e.message)}</span>`; } };
 
 // ===== Gestion des produits =====
-const CH = {pPas:"pas",pCoul:"couleurs",pNom:"nom",pPrix:"prix",pPromo:"promo",pCat:"categorie",pStock:"stock",pMarque:"marque",pRef:"ref",pFour:"fournisseur",pDesc:"description"};
+const CH = {pEtoiles:"etoiles",pVentes:"ventes",pVideo:"video",pPas:"pas",pCoul:"couleurs",pNom:"nom",pPrix:"prix",pPromo:"promo",pCat:"categorie",pStock:"stock",pMarque:"marque",pRef:"ref",pDesc:"description"};
 function remplirFormulaire(p){
   Object.entries(CH).forEach(([id,k]) => $(id).value = p && p[k] != null ? p[k] : "");
   $("pPublie").checked = p ? p.publie !== false : true; const u = p && p.unite ? p.unite : "pièce", ok = [...$("pUnite").options].some(o => o.value === u);
   $("pUnite").value = ok ? u : "autre"; $("pUniteAutre").value = ok ? "" : u; $("uAutreBox").classList.toggle("hide", ok);
   $("pDispo").checked = p ? p.disponible !== false : true; $("pVedette").checked = !!(p && p.vedette);
-  PHOTO = ""; $("pPhoto").value = ""; $("pCam").value = "";
-  $("apercu").src = p && p.photo ? p.photo : ""; $("apercu").classList.toggle("hide", !(p && p.photo));
+  PHOTOS = p ? [...photosDe(p)] : []; $("pPhoto").value = ""; $("pCam").value = ""; majMini(); $("pAuto").checked = !!(p && p.autoplay);
   $("admTitre").textContent = p ? "Modifier le produit" : "Ajouter un produit"; $("pAnnul").classList.toggle("hide", !p);
 }
+$("bVidX").onclick = () => { $("pVideo").value = ""; $("vidMsg").textContent = "Vidéo retirée (pensez à enregistrer)."; };
+$("bVid").onclick = () => $("pVidFile").click();
+$("pVidFile").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (f.size > 60*1024*1024) { $("vidMsg").innerHTML = `<span class="ko">Vidéo trop lourde (60 Mo maximum). Utilisez plutôt un lien YouTube.</span>`; return; }
+  let st; try { st = firebase.storage(); } catch(_){ $("vidMsg").innerHTML = `<span class="ko">Stockage Firebase indisponible. Utilisez un lien YouTube.</span>`; return; }
+  const ref = st.ref("videos/" + Date.now() + "_" + f.name.replace(/[^\w.-]/g, "_")), tache = ref.put(f, {contentType: f.type});
+  $("bVid").disabled = true;
+  tache.on("state_changed", sn => { $("vidMsg").textContent = "Envoi… " + Math.round(sn.bytesTransferred / sn.totalBytes * 100) + " %"; },
+    err => { $("bVid").disabled = false; $("vidMsg").innerHTML = `<span class="ko">Échec de l’envoi (${esc(err.code||err.message)}). Activez Storage et ses règles dans Firebase, ou utilisez un lien YouTube.</span>`; },
+    async () => { $("bVid").disabled = false; $("pVideo").value = await ref.getDownloadURL(); $("vidMsg").innerHTML = `<span class="ok">Vidéo envoyée. Touchez « Enregistrer » pour l’ajouter au produit.</span>`; });
+};
 $("pUnite").onchange = () => $("uAutreBox").classList.toggle("hide", $("pUnite").value !== "autre");
 $("coulRap").innerHTML = Object.keys(COUL).map(c => { const n = c[0].toUpperCase() + c.slice(1); return `<button type="button" class="chip" data-n="${n}">${puce(c)}${n}</button>`; }).join("");
 $("coulRap").querySelectorAll(".chip").forEach(b => b.onclick = () => { const l = $("pCoul").value.split(",").map(x => x.trim()).filter(Boolean); if (!l.some(x => x.toLowerCase() === b.dataset.n.toLowerCase())) l.push(b.dataset.n); $("pCoul").value = l.join(", "); });
@@ -532,24 +683,26 @@ $("pSave").onclick = async () => {
   const num = id => $(id).value === "" ? "" : Number(String($(id).value).replace(",","."));
   const nom = $("pNom").value.trim(), prix = num("pPrix");
   if (!nom || !(prix > 0)) { $("pMsg").textContent = "Le nom et un prix supérieur à 0 sont obligatoires."; return; }
-  const photo = PHOTO || (EDITION && PRODUITS[EDITION].photo) || "";
-  if (photo.length > 300000) { $("pMsg").textContent = "Photo trop lourde."; return; }
+  const photo = PHOTOS[0] || "";
+  if (PHOTOS.join("").length > 900000) { $("pMsg").textContent = "Photos trop lourdes : retirez-en une."; return; }
   const unite = $("pUnite").value === "autre" ? ($("pUniteAutre").value.trim() || "pièce") : $("pUnite").value;
   const couleurs = [...new Set($("pCoul").value.split(",").map(x => x.trim()).filter(Boolean))].join(", ");
-  const d = {unite, pas:num("pPas") > 0 ? num("pPas") : 1, couleurs, nom, prix, promo:num("pPromo"), stock:num("pStock"), categorie:$("pCat").value.trim()||"Autres", marque:$("pMarque").value.trim(), ref:$("pRef").value.trim(), fournisseur:$("pFour").value.trim(),
-    description:$("pDesc").value.trim(), publie:$("pPublie").checked, disponible:$("pDispo").checked, vedette:$("pVedette").checked, photo, t:Date.now()};
-  try { if (EDITION) await db.ref("produits/"+EDITION).set(d); else await db.ref("produits").push(d);
+  const video = $("pVideo").value.trim();
+  if (video && !urlVideo(video)) { $("pMsg").textContent = "Le lien de la vidéo doit commencer par https://"; return; }
+  const d = {video, unite, pas:num("pPas") > 0 ? num("pPas") : 1, couleurs, nom, prix, promo:num("pPromo"), stock:num("pStock"), categorie:$("pCat").value.trim()||"Autres", marque:$("pMarque").value.trim(), ref:$("pRef").value.trim(), etoiles:Math.min(5, Math.max(0, num("pEtoiles") || 0)), ventes:Math.max(0, num("pVentes") || 0),
+    description:$("pDesc").value.trim(), publie:$("pPublie").checked, disponible:$("pDispo").checked, vedette:$("pVedette").checked, photo, photos:PHOTOS, autoplay:$("pAuto").checked, t:Date.now()};
+  try { const refP = EDITION ? db.ref("produits/"+EDITION) : db.ref("produits").push(); await refP.set(d);
     $("pMsg").innerHTML = `<span class="ok">${d.publie ? "Enregistré et publié sur l’accueil." : "Enregistré en brouillon (non visible par les clients)."}</span>`; EDITION = null; remplirFormulaire(null); }
   catch(e){ $("pMsg").innerHTML = `<span class="ko">Refusé : ${esc(e.code||e.message)}. Vérifiez la connexion et les règles de la base.</span>`; }
 };
 function majAdminListe(){
   const el = $("admList"); const l = Object.entries(PRODUITS).sort((a,b) => (b[1].t||0)-(a[1].t||0));
-  el.innerHTML = l.length ? l.map(([id,p]) => `<div class="line"><div style="min-width:0"><b>${esc(p.nom)}</b> <span class="${p.publie===false?"ko":"ok"}">${p.publie===false?"● Brouillon":"● Publié"}</span><div class="muted">${fmt(p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""} · ${esc(p.categorie||"")}${listeCoul(p).length ? " · " + esc(listeCoul(p).join("/")) : ""}${p.stock!==""&&p.stock!=null?" · stock "+p.stock:""}${p.fournisseur?" · "+esc(p.fournisseur):""}</div></div>
+  el.innerHTML = l.length ? l.map(([id,p]) => `<div class="line"><div style="min-width:0"><b>${esc(p.nom)}</b> <span class="${p.publie===false?"ko":"ok"}">${p.publie===false?"● Brouillon":"● Publié"}</span><div class="muted">${fmt(p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""} · ${esc(p.categorie||"")}${listeCoul(p).length ? " · " + esc(listeCoul(p).join("/")) : ""}${p.video ? " · 🎬" : ""}${p.stock!==""&&p.stock!=null?" · stock "+p.stock:""}</div></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="sm ${p.publie===false?"pri":""}" data-pub="${id}">${p.publie===false?"Publier":"Dépublier"}</button><button class="sm" data-edit="${id}">Modifier</button><button class="sm" data-dispo="${id}">${p.disponible===false?"Remettre":"Épuisé"}</button><button class="sm danger" data-del="${id}">Supprimer</button></div></div>`).join("") : `<p class="muted">Aucun produit.</p>`;
   el.querySelectorAll("[data-pub]").forEach(b => b.onclick = () => db.ref("produits/"+b.dataset.pub+"/publie").set(PRODUITS[b.dataset.pub].publie === false));
   el.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => { EDITION = b.dataset.edit; remplirFormulaire(PRODUITS[EDITION]); scrollTo({top:0,behavior:"smooth"}); });
   el.querySelectorAll("[data-dispo]").forEach(b => b.onclick = () => db.ref("produits/"+b.dataset.dispo+"/disponible").set(PRODUITS[b.dataset.dispo].disponible === false));
-  el.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (confirm("Supprimer définitivement « " + PRODUITS[b.dataset.del].nom + " » ? Cette action est irréversible.")) db.ref("produits/"+b.dataset.del).remove(); });
+  el.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (confirm("Supprimer définitivement « " + PRODUITS[b.dataset.del].nom + " » ? Cette action est irréversible.")) { db.ref("produits/"+b.dataset.del).remove(); db.ref("avis/"+b.dataset.del).remove().catch(() => {}); } });
 }
 if (location.hash.toLowerCase().includes("admin")) montrer("vAdm");
 majNb(); majCatalogue();
