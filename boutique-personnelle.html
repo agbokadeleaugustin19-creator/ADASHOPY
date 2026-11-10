@@ -27,7 +27,7 @@ label{font-weight:700;font-size:14px}
 .prod img,.sansphoto{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:12px;background:var(--in)}
 .sansphoto{display:flex;align-items:center;justify-content:center;opacity:.6;font-size:13px}
 .prod{position:relative}.prod h3{font-size:15px;margin:8px 0 2px}
-.prix{color:var(--gold);font-weight:800}.old{text-decoration:line-through;opacity:.6;font-weight:400;font-size:13px;margin-left:6px}
+.prix{color:var(--gold);font-weight:800}.old{display:block;text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--ko);color:var(--tx);opacity:.75;font-weight:600;font-size:14px;margin:0 0 2px}
 .badge{position:absolute;top:14px;left:14px;background:var(--ko);color:#fff;font-size:12px;font-weight:800;border-radius:8px;padding:2px 8px}
 .cat{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px}.cat button{white-space:nowrap}
 .muted{opacity:.75;font-size:13px}.ko{color:var(--ko)}.ok{color:var(--ok)}
@@ -441,7 +441,7 @@ function ouvrirDetail(id){
   $("detBody").innerHTML = `<div class="carw"><div class="car" id="car">${sl}</div>${n > 1 ? `<button type="button" class="ar l" id="arL">‹</button><button type="button" class="ar r" id="arR">›</button>` : ""}</div>
     <div class="dots">${Array.from({length:Math.max(n,1)}, (_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div>
     <h2 style="margin:6px 0 2px">${esc(p.nom)}</h2>
-    <div class="prix" style="font-size:20px">${fmt(promo ? p.promo : p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""}${promo ? `<span class="old">${fmt(p.prix)}</span>` : ""}</div>
+    <div class="prix" style="font-size:20px">${promo ? `<span class="old">${fmt(p.prix)} FCFA</span>` : ""}${fmt(promo ? p.promo : p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""}</div>
     ${(p.etoiles > 0 || p.ventes > 0) ? `<div style="margin:6px 0">${p.etoiles > 0 ? `<span style="color:var(--gold);font-size:18px">${etoilesTxt(p.etoiles)}</span> <b>${fmtQ(p.etoiles)}/5</b>` : ""}${p.ventes > 0 ? `${p.etoiles > 0 ? " · " : ""}🛒 ${fmtQ(p.ventes)} ${p.ventes > 1 ? "personnes ont déjà acheté ce produit" : "personne a déjà acheté ce produit"}` : ""}</div>` : ""}
     ${p.marque ? `<div class="muted">${esc(p.marque)}</div>` : ""}
     ${p.description ? `<p style="white-space:pre-wrap">${esc(p.description)}</p>` : ""}
@@ -533,7 +533,7 @@ function majCatalogue(){
     return `<div class="card prod" data-det="${id}" style="cursor:pointer;padding:8px">
       ${p.vedette ? `<span class="badge" style="background:var(--gold);color:var(--bg)">⭐</span>` : promo ? `<span class="badge">PROMO</span>` : ""}
       ${photosDe(p).length ? `<div class="cardcar">${photosDe(p).map(x => `<img src="${x}" alt="${esc(p.nom)}">`).join("")}</div>${photosDe(p).length > 1 ? `<span class="nb">📷 ${photosDe(p).length}</span>` : ""}` : `<div class="sansphoto">Pas de photo</div>`}
-      <div class="prix" style="margin-top:8px;text-align:center;font-size:16px">${fmt(promo ? p.promo : p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""}${promo ? `<span class="old">${fmt(p.prix)}</span>` : ""}</div>
+      <div class="prix" style="margin-top:8px;text-align:center;font-size:16px">${promo ? `<span class="old">${fmt(p.prix)} FCFA</span>` : ""}${fmt(promo ? p.promo : p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""}</div>
       ${enStock(p) ? "" : `<div class="ko" style="text-align:center;font-size:13px">Épuisé</div>`}
     </div>`; }).join("");
   $("prods").querySelectorAll("[data-det]").forEach(b => b.onclick = () => ouvrirDetail(b.dataset.det));
