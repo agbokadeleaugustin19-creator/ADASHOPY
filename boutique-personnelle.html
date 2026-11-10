@@ -42,8 +42,8 @@ h2,h3{color:var(--gold)}
 .av{padding:8px 0;border-bottom:1px solid var(--bd)}
 .rep{margin:6px 0 0 14px;padding:6px 10px;background:var(--in);border-radius:10px;font-size:14px}
 .carw{position:relative}.car{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;border-radius:14px;scrollbar-width:none}.car::-webkit-scrollbar{display:none}
-.car>div{flex:0 0 100%;scroll-snap-align:center;aspect-ratio:1/1;background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
-.car img{width:100%;height:100%;object-fit:contain}
+.car>div{flex:0 0 100%;scroll-snap-align:center;aspect-ratio:3/4;max-height:78vh;background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.car img{width:100%;height:100%;object-fit:contain;cursor:zoom-in}.car{border-radius:0 0 14px 14px}
 .ar{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5)!important;color:#fff!important;border:0!important;font-size:24px;width:38px;height:38px;padding:0!important;border-radius:50%}.ar.l{left:6px}.ar.r{right:6px}
 .dots{display:flex;justify-content:center;gap:6px;margin:8px 0}.dots i{width:8px;height:8px;border-radius:50%;background:var(--bd)}.dots i.on{background:var(--gold)}
 .playbig{position:absolute;inset:0;margin:auto;width:72px;height:72px;border-radius:50%;padding:0;font-size:30px;background:rgba(0,0,0,.65);color:#fff;border:2px solid #fff}
@@ -59,6 +59,7 @@ h2,h3{color:var(--gold)}
 #menu{position:fixed;top:0;bottom:0;left:0;width:78%;max-width:300px;background:var(--card);z-index:40;padding:20px 14px;transform:translateX(-105%);transition:transform .25s;border-right:1px solid var(--bd)}
 #menu.open{transform:none}
 #menu button{display:block;width:100%;text-align:left;margin:8px 0;border-radius:14px}
+#pied{text-align:center;padding:18px 12px calc(18px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--bd);color:var(--tx);opacity:.8;font-size:13px}#pied b{color:var(--gold);letter-spacing:1px}
 </style>
 </head>
 <body>
@@ -69,6 +70,7 @@ h2,h3{color:var(--gold)}
 </header>
 <div id="ov" class="hide"></div>
 <div id="toast" class="hide" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card);color:var(--tx);border:1px solid var(--gold);border-radius:999px;padding:8px 16px;z-index:50;font-weight:700"></div>
+<div id="imgBox" class="hide" style="position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:90;display:flex;align-items:center;justify-content:center"><button type="button" id="imgClose" aria-label="Fermer" style="position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;padding:0;border-radius:50%;font-size:22px;background:rgba(0,0,0,.6);color:#fff;border-color:#fff">✕</button><img id="imgBig" alt="" style="max-width:100%;max-height:100%;object-fit:contain"></div>
 <div id="detBox" class="hide" style="position:fixed;inset:0;background:var(--bg);z-index:60;overflow-y:auto">
   <div style="max-width:640px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 40px">
     <button class="sm" id="detClose">← Retour</button>
@@ -214,7 +216,7 @@ h2,h3{color:var(--gold)}
           <button type="button" id="bVid" style="flex:1">🎬 Importer une vidéo</button>
           <button type="button" id="bVidX" class="danger" style="flex:1">Retirer la vidéo</button>
         </div>
-        <input id="pVidFile" type="file" accept="video/*" class="hide">
+        <input id="pVidFile" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.3gp" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" tabindex="-1">
         <p id="vidMsg" class="muted"></p>
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pAuto" style="width:auto;margin:0"> Lecture automatique de la vidéo (sans le son)</label>
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pPublie" checked style="width:auto;margin:0"> Publier sur la boutique (visible par les clients)</label>
@@ -285,6 +287,7 @@ h2,h3{color:var(--gold)}
 
 </section>
 </div>
+<footer id="pied">Idée et conception : <b>ADA</b></footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -465,6 +468,7 @@ function ouvrirDetail(id){
   $("detBox").classList.remove("hide"); $("detBox").scrollTop = 0;
   const car = $("car");
   if (vid) montrerVideo(p, false);
+  car.querySelectorAll("img").forEach(im => { if (!im.closest("#vSlide")) im.onclick = () => voirImg(im.src); });
   car.onscroll = () => { const i = Math.round(car.scrollLeft / car.clientWidth); if (i !== DET.last) majSlide(i); };
   if ($("arL")) { $("arL").onclick = () => car.scrollBy({left:-car.clientWidth, behavior:"smooth"}); $("arR").onclick = () => car.scrollBy({left:car.clientWidth, behavior:"smooth"}); }
   $("detBody").querySelectorAll(".chip").forEach(b => b.onclick = () => { SELCOUL[id] = b.dataset.c; $("detBody").querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b)); });
@@ -480,7 +484,8 @@ function majSlide(i){
 $("detClose").onclick = () => { $("detBox").classList.add("hide"); $("detBody").innerHTML = ""; DET = null; if (AV_REF) { AV_REF.off(); AV_REF = null; } };
 let AV_REF = null, AV_PH = "";
 function majAvMini(){ $("avMini").innerHTML = AV_PH ? `<div class="mini"><img src="${AV_PH}" alt=""><b id="avX">✕</b></div>` : ""; if (AV_PH) $("avX").onclick = () => { AV_PH = ""; majAvMini(); }; }
-function voirImg(src){ const z = $("vidZone"); z.innerHTML = `<img src="${src}" alt="" style="width:100%;max-height:80vh;object-fit:contain;border-radius:12px">`; $("vidBox").style.zIndex = 80; $("vidBox").classList.remove("hide"); }
+function voirImg(src){ $("imgBig").src = src; $("imgBox").classList.remove("hide"); }
+$("imgClose").onclick = () => $("imgBox").classList.add("hide"); $("imgBox").onclick = e => { if (e.target.id !== "imgBig") $("imgBox").classList.add("hide"); };
 function brancherQR(p, id){
   $("qSend").onclick = () => {
     const q = $("qTxt").value.trim(), prix = fmt(p.promo > 0 && p.promo < p.prix ? p.promo : p.prix) + " FCFA" + (uni(p) ? " / " + uni(p) : "");
@@ -660,14 +665,21 @@ function remplirFormulaire(p){
 $("bVidX").onclick = () => { $("pVideo").value = ""; $("vidMsg").textContent = "Vidéo retirée (pensez à enregistrer)."; };
 $("bVid").onclick = () => $("pVidFile").click();
 $("pVidFile").onchange = e => {
-  const f = e.target.files[0]; if (!f) return;
-  if (f.size > 60*1024*1024) { $("vidMsg").innerHTML = `<span class="ko">Vidéo trop lourde (60 Mo maximum). Utilisez plutôt un lien YouTube.</span>`; return; }
-  let st; try { st = firebase.storage(); } catch(_){ $("vidMsg").innerHTML = `<span class="ko">Stockage Firebase indisponible. Utilisez un lien YouTube.</span>`; return; }
-  const ref = st.ref("videos/" + Date.now() + "_" + f.name.replace(/[^\w.-]/g, "_")), tache = ref.put(f, {contentType: f.type});
-  $("bVid").disabled = true;
-  tache.on("state_changed", sn => { $("vidMsg").textContent = "Envoi… " + Math.round(sn.bytesTransferred / sn.totalBytes * 100) + " %"; },
-    err => { $("bVid").disabled = false; $("vidMsg").innerHTML = `<span class="ko">Échec de l’envoi (${esc(err.code||err.message)}). Activez Storage et ses règles dans Firebase, ou utilisez un lien YouTube.</span>`; },
-    async () => { $("bVid").disabled = false; $("pVideo").value = await ref.getDownloadURL(); $("vidMsg").innerHTML = `<span class="ok">Vidéo envoyée. Touchez « Enregistrer » pour l’ajouter au produit.</span>`; });
+  const f = e.target.files[0]; if (!f) return; const msg = h => { $("vidMsg").innerHTML = h; };
+  if (f.size > 150*1024*1024) { msg(`<span class="ko">Vidéo trop lourde (150 Mo maximum). Réduisez-la ou utilisez un lien YouTube.</span>`); e.target.value = ""; return; }
+  if (auth && !auth.currentUser) { msg(`<span class="ko">Connectez-vous d’abord en tant qu’administrateur.</span>`); e.target.value = ""; return; }
+  let st; try { st = firebase.storage(); } catch(_){ msg(`<span class="ko">Stockage Firebase indisponible. Utilisez un lien YouTube.</span>`); return; }
+  const type = f.type || (/\.mov$/i.test(f.name) ? "video/quicktime" : /\.webm$/i.test(f.name) ? "video/webm" : "video/mp4");
+  const ref = st.ref("videos/" + Date.now() + "_" + f.name.replace(/[^\w.-]/g, "_")), tache = ref.put(f, {contentType: type});
+  $("bVid").disabled = true; msg("Envoi… 0 %");
+  tache.on("state_changed", sn => { msg("Envoi… " + Math.round(sn.bytesTransferred / sn.totalBytes * 100) + " %"); },
+    err => { $("bVid").disabled = false; e.target.value = ""; const c = err.code || "";
+      const aide = c.includes("unauthorized") ? "Dans Firebase > Storage > Règles, autorisez l’écriture : allow read: if true; allow write: if request.auth != null;"
+        : (c.includes("unknown") || c.includes("bucket") || c.includes("project-not-found") || c.includes("quota")) ? "Activez Storage dans la console Firebase (cela peut demander le forfait Blaze)."
+        : c.includes("retry-limit") || c.includes("network") ? "Connexion trop faible, réessayez avec une vidéo plus légère."
+        : "Vérifiez Storage dans Firebase.";
+      msg(`<span class="ko">Échec de l’envoi (${esc(c || err.message)}). ${esc(aide)} Vous pouvez aussi coller un lien YouTube.</span>`); },
+    async () => { $("bVid").disabled = false; e.target.value = ""; try { $("pVideo").value = await ref.getDownloadURL(); msg(`<span class="ok">Vidéo envoyée. Touchez « Enregistrer » pour l’ajouter au produit.</span>`); } catch(er){ msg(`<span class="ko">Envoi terminé mais lien introuvable (${esc(er.code||er.message)}).</span>`); } });
 };
 $("pUnite").onchange = () => $("uAutreBox").classList.toggle("hide", $("pUnite").value !== "autre");
 $("coulRap").innerHTML = Object.keys(COUL).map(c => { const n = c[0].toUpperCase() + c.slice(1); return `<button type="button" class="chip" data-n="${n}">${puce(c)}${n}</button>`; }).join("");
