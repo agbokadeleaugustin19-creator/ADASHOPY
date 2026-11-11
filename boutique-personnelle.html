@@ -15,7 +15,8 @@
 <style>
 :root{--bg:#0f130f;--card:#1a1f18;--in:#232a20;--tx:#f1e6c4;--gold:#f0c85a;--ok:#3ddc5a;--ko:#ff6b5e;--bd:#353a2c;--btn:#3ddc5a;--btnt:#0d1a0f;--bgimg:none}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}img,video,iframe{max-width:100%}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;overflow-x:hidden}
 header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--bd)}
 header b{color:var(--gold);font-size:17px;letter-spacing:.5px}
 .ic{background:none;border:0;color:var(--gold);font-size:28px;padding:2px 10px;line-height:1}
@@ -31,7 +32,18 @@ label{font-weight:700;font-size:14px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:12px;margin:10px 0}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media (min-width:640px){.grid{grid-template-columns:1fr 1fr 1fr}}
+@media (min-width:640px){.grid{grid-template-columns:repeat(3,1fr)}.wrap{max-width:900px;padding:16px 18px 20px}}
+@media (min-width:1000px){.grid{grid-template-columns:repeat(4,1fr);gap:16px}.wrap{max-width:1180px}header{padding:12px 28px}}
+@media (min-width:1400px){.grid{grid-template-columns:repeat(5,1fr)}.wrap{max-width:1360px}}
+.detin{max-width:640px;margin:0 auto}
+@media (min-width:700px){.detin{max-width:780px}}
+@media (min-width:980px){
+  .detin{max-width:1100px}
+  #detBody{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:32px;align-items:start}
+  #detBody>*{grid-column:2;min-width:0}
+  #detBody>.carw{grid-column:1;grid-row:1 / span 60;position:sticky;top:10px}
+  #detBody>.dots{display:none}
+}
 .prod img,.sansphoto{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:12px;background:var(--in)}
 .sansphoto{display:flex;align-items:center;justify-content:center;opacity:.6;font-size:13px}
 .prod{position:relative}.prod h3{font-size:15px;margin:8px 0 2px}
@@ -86,7 +98,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--bgimg
 <div id="instBox" class="hide"><div><b style="font-size:17px">📲 Installer l’application</b><div id="instTxt"></div><button type="button" id="instOk" style="width:100%">J’ai compris</button></div></div>
 <div id="imgBox" class="hide" style="position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:90;display:flex;align-items:center;justify-content:center"><button type="button" id="imgClose" aria-label="Fermer" style="position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;padding:0;border-radius:50%;font-size:22px;background:rgba(0,0,0,.6);color:#fff;border-color:#fff">✕</button><img id="imgBig" alt="" style="max-width:100%;max-height:100%;object-fit:contain"></div>
 <div id="detBox" class="hide" style="position:fixed;inset:0;background:var(--bg);z-index:60;overflow-y:auto">
-  <div style="max-width:640px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 40px">
+  <div class="detin" style="padding:calc(10px + env(safe-area-inset-top,0px)) 12px 40px">
     <button class="sm" id="detClose">← Retour</button>
     <div id="detBody" style="margin-top:10px"></div>
   </div>
@@ -346,7 +358,7 @@ const lsSet = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } cat
 
 let PRODUITS = lsGet("prodCache", {}) || {}, CHARGE = false, REG = {...DEF_REG}, PANIER = lsGet("panier",{}), CAT = "", EDITION = null, PHOTOS = [], db = null, auth = null;
 CHARGE = Object.keys(PRODUITS).length > 0;
-try { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); auth = firebase.auth(); }
+try { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); auth = firebase.auth(); auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(() => {}); }
 catch(e){ alerteErreur("Firebase : " + e.message); }
 if (location.protocol === "file:") alerteErreur("Ouvrez l’application depuis son adresse en ligne (https://…) pour que la connexion administrateur fonctionne.");
 const isAdmin = u => !!(u && u.email && u.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
@@ -842,6 +854,21 @@ majNb(); majCatalogue();
   $("instOk").onclick = () => $("instBox").classList.add("hide");
   $("instBox").onclick = e => { if (e.target.id === "instBox") $("instBox").classList.add("hide"); };
   majBoutons();
+})();
+
+/* ===== Déconnexion automatique de l'administrateur ===== */
+(function(){
+  if (!auth) return;
+  const ABSENCE_MIN = 10, INACTIF_MIN = 30;   /* modifiables */
+  let parti = 0, minuteur = null;
+  const sortir = () => { if (auth.currentUser) { auth.signOut(); const e = $("aErr"); if (e) e.textContent = "Session fermée automatiquement : reconnectez-vous."; } };
+  const armer = () => { clearTimeout(minuteur); if (auth.currentUser) minuteur = setTimeout(sortir, INACTIF_MIN * 60000); };
+  ["click", "keydown", "touchstart", "scroll"].forEach(ev => addEventListener(ev, armer, {passive: true}));
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) parti = Date.now();
+    else { if (parti && Date.now() - parti > ABSENCE_MIN * 60000) sortir(); parti = 0; armer(); }
+  });
+  auth.onAuthStateChanged(armer);
 })();
 </script>
 </body>
