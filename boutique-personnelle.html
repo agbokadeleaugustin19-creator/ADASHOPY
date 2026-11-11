@@ -233,6 +233,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--bgimg
           <button type="button" id="bVidX" class="danger" style="flex:1">Retirer la vidéo</button>
         </div>
         <input id="pVidFile" type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.3gp" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" tabindex="-1">
+        <p id="vidCap" class="muted" style="margin:0 0 4px"></p>
         <p id="vidMsg" class="muted"></p>
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pAuto" style="width:auto;margin:0"> Lecture automatique de la vidéo (sans le son)</label>
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pPublie" checked style="width:auto;margin:0"> Publier sur la boutique (visible par les clients)</label>
@@ -503,8 +504,20 @@ function montrerVideo(p, play){
     if (play) { v.muted = !!p.autoplay; v.play().catch(() => {}); } else v.pause();
   }
 }
+/* ===== Statistiques de vues ===== */
+const DEVID = (() => { let v = lsGet("devId", ""); if (!v) { v = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); lsSet("devId", v); } return v; })();
+const DEJA_VU = new Set(); let VUEDATA = {}, VU_ON = false, VU_ERR = "";
+function compterVue(id){
+  if (!db || DEJA_VU.has(id) || (auth && isAdmin(auth.currentUser))) return; DEJA_VU.add(id);
+  try { db.ref("vues/" + id + "/total").transaction(n => (n || 0) + 1).catch(() => {}); db.ref("vues/" + id + "/gens/" + DEVID).set(true).catch(() => {}); } catch(_){}
+}
+function ecouterVues(){
+  if (VU_ON || !db) return; VU_ON = true;
+  db.ref("vues").on("value", s => { VUEDATA = s.val() || {}; VU_ERR = ""; majAdminListe(); }, e => { VU_ERR = e.code || e.message; VU_ON = false; majAdminListe(); });
+}
 function ouvrirDetail(id){
   const p = PRODUITS[id]; if (!p) return;
+  compterVue(id);
   const ph = photosDe(p), vid = urlVideo(p.video), n = ph.length + (vid ? 1 : 0), promo = p.promo > 0 && p.promo < p.prix, cl = listeCoul(p);
   DET = {id, last:-1, n, vid, p};
   const sl = ph.map(x => `<div><img src="${x}" alt=""></div>`).join("") + (vid ? `<div id="vSlide"></div>` : "") || `<div class="sansphoto" style="width:100%">Pas de photo</div>`;
@@ -668,7 +681,7 @@ document.querySelectorAll("#admBox [data-t]").forEach(b => b.onclick = () => {
   ["tProd","tImp","tThe","tCon","tReg"].forEach(t => $(t).classList.toggle("hide", t !== b.dataset.t));
   document.querySelectorAll("#admBox [data-t]").forEach(x => x.classList.toggle("on", x === b));
 });
-function afficherEtat(u){ const a = isAdmin(u);
+function afficherEtat(u){ const a = isAdmin(u); if (a) { ecouterVues(); majCapacite(); }
   if (a && !$("vAdm").classList.contains("hide")) { montrer("vGest", true); history.replaceState({v:"vGest"}, ""); }
   if (!u && !$("vGest").classList.contains("hide")) montrer("vAdm");
   $("loginBox").classList.toggle("hide", !!u); $("verifBox").classList.add("hide"); $("admBox").classList.toggle("hide", !a); $("verifBan").classList.toggle("hide", !(a && !u.emailVerified)); }
@@ -729,24 +742,41 @@ function remplirFormulaire(p){
   PHOTOS = p ? [...photosDe(p)] : []; $("pPhoto").value = ""; $("pCam").value = ""; majMini(); $("pAuto").checked = !!(p && p.autoplay);
   $("admTitre").textContent = p ? "Modifier le produit" : "Ajouter un produit"; $("pAnnul").classList.toggle("hide", !p);
 }
+/* Forfait gratuit : limites volontairement basses. Modifiez ces deux nombres si besoin. */
+const MAX_VIDEO_MO = 15, MAX_TOTAL_MO = 500;
+function fmtTaille(o){ return o >= 1073741824 ? (o/1073741824).toFixed(2).replace(".", ",") + " Go" : Math.max(1, Math.round(o/1048576)) + " Mo"; }
+async function capaciteVideos(){
+  const QUOTA_MO = MAX_TOTAL_MO;
+  const r = await firebase.storage().ref("videos").listAll();
+  const tailles = await Promise.all(r.items.map(i => i.getMetadata().then(m => +m.size || 0).catch(() => 0)));
+  const used = tailles.reduce((a, b) => a + b, 0), quota = QUOTA_MO * 1048576;
+  return {used, quota, reste: Math.max(0, quota - used), nb: r.items.length};
+}
+async function majCapacite(){
+  try { const c = await capaciteVideos(); $("vidCap").innerHTML = `📦 Espace vidéos : ${fmtTaille(c.used)} utilisés sur ${fmtTaille(c.quota)} · <b>il reste ${fmtTaille(c.reste)}</b> (${c.nb} vidéo${c.nb > 1 ? "s" : ""})<br>⚠️ Maximum ${MAX_VIDEO_MO} Mo par vidéo (environ 15 secondes en 720p).`; return c; }
+  catch(_){ $("vidCap").textContent = "Espace restant : non disponible pour le moment."; return null; }
+}
 $("bVidX").onclick = () => { $("pVideo").value = ""; $("vidMsg").textContent = "Vidéo retirée (pensez à enregistrer)."; };
-$("bVid").onclick = () => $("pVidFile").click();
-$("pVidFile").onchange = e => {
+$("bVid").onclick = () => { $("pVidFile").click(); majCapacite(); };
+$("pVidFile").onchange = async e => {
   const f = e.target.files[0]; if (!f) return; const msg = h => { $("vidMsg").innerHTML = h; };
-  if (f.size > 150*1024*1024) { msg(`<span class="ko">Vidéo trop lourde (150 Mo maximum). Réduisez-la ou utilisez un lien YouTube.</span>`); e.target.value = ""; return; }
+  if (f.size > MAX_VIDEO_MO * 1048576) { msg(`<span class="ko">Vidéo trop lourde : ${fmtTaille(f.size)} (maximum ${MAX_VIDEO_MO} Mo pour économiser l’espace gratuit). Filmez 10 à 15 secondes en qualité 720p, ou collez un lien YouTube : il ne prend aucune place.</span>`); e.target.value = ""; return; }
   if (auth && !auth.currentUser) { msg(`<span class="ko">Connectez-vous d’abord en tant qu’administrateur.</span>`); e.target.value = ""; return; }
   let st; try { st = firebase.storage(); } catch(_){ msg(`<span class="ko">Stockage Firebase indisponible. Utilisez un lien YouTube.</span>`); return; }
+  msg("Vérification de l’espace disponible…");
+  const cap = await majCapacite();
+  if (cap && f.size > cap.reste) { msg(`<span class="ko">Cette vidéo fait ${fmtTaille(f.size)} mais il ne reste que ${fmtTaille(cap.reste)} d’espace. Choisissez une vidéo plus courte (ou en qualité 720p), ou supprimez d’anciennes vidéos dans Firebase > Storage.</span>`); e.target.value = ""; return; }
   const type = f.type || (/\.mov$/i.test(f.name) ? "video/quicktime" : /\.webm$/i.test(f.name) ? "video/webm" : "video/mp4");
   const ref = st.ref("videos/" + Date.now() + "_" + f.name.replace(/[^\w.-]/g, "_")), tache = ref.put(f, {contentType: type});
-  $("bVid").disabled = true; msg("Envoi… 0 %");
-  tache.on("state_changed", sn => { msg("Envoi… " + Math.round(sn.bytesTransferred / sn.totalBytes * 100) + " %"); },
+  $("bVid").disabled = true; msg(`Envoi de ${fmtTaille(f.size)}… 0 %${f.size > 100*1048576 ? " (vidéo lourde : gardez l’écran allumé)" : ""}`);
+  tache.on("state_changed", sn => { msg(`Envoi de ${fmtTaille(f.size)}… ` + Math.round(sn.bytesTransferred / sn.totalBytes * 100) + " %"); },
     err => { $("bVid").disabled = false; e.target.value = ""; const c = err.code || "";
       const aide = c.includes("unauthorized") ? "Dans Firebase > Storage > Règles, autorisez l’écriture : allow read: if true; allow write: if request.auth != null;"
         : (c.includes("unknown") || c.includes("bucket") || c.includes("project-not-found") || c.includes("quota")) ? "Activez Storage dans la console Firebase (cela peut demander le forfait Blaze)."
         : c.includes("retry-limit") || c.includes("network") ? "Connexion trop faible, réessayez avec une vidéo plus légère."
         : "Vérifiez Storage dans Firebase.";
       msg(`<span class="ko">Échec de l’envoi (${esc(c || err.message)}). ${esc(aide)} Vous pouvez aussi coller un lien YouTube.</span>`); },
-    async () => { $("bVid").disabled = false; e.target.value = ""; try { $("pVideo").value = await ref.getDownloadURL(); msg(`<span class="ok">Vidéo envoyée. Touchez « Enregistrer » pour l’ajouter au produit.</span>`); } catch(er){ msg(`<span class="ko">Envoi terminé mais lien introuvable (${esc(er.code||er.message)}).</span>`); } });
+    async () => { $("bVid").disabled = false; e.target.value = ""; try { $("pVideo").value = await ref.getDownloadURL(); msg(`<span class="ok">Vidéo envoyée (${fmtTaille(f.size)}). Touchez « Enregistrer » pour l’ajouter au produit.</span>`); majCapacite(); } catch(er){ msg(`<span class="ko">Envoi terminé mais lien introuvable (${esc(er.code||er.message)}).</span>`); } });
 };
 $("pUnite").onchange = () => $("uAutreBox").classList.toggle("hide", $("pUnite").value !== "autre");
 $("coulRap").innerHTML = Object.keys(COUL).map(c => { const n = c[0].toUpperCase() + c.slice(1); return `<button type="button" class="chip" data-n="${n}">${puce(c)}${n}</button>`; }).join("");
@@ -771,12 +801,14 @@ $("pSave").onclick = async () => {
 };
 function majAdminListe(){
   const el = $("admList"); const l = Object.entries(PRODUITS).sort((a,b) => (b[1].t||0)-(a[1].t||0));
-  el.innerHTML = l.length ? l.map(([id,p]) => `<div class="line"><div style="min-width:0"><b>${esc(p.nom)}</b> <span class="${p.publie===false?"ko":"ok"}">${p.publie===false?"● Brouillon":"● Publié"}</span><div class="muted">${fmt(p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""} · ${esc(p.categorie||"")}${listeCoul(p).length ? " · " + esc(listeCoul(p).join("/")) : ""}${p.video ? " · 🎬" : ""}${p.stock!==""&&p.stock!=null?" · stock "+p.stock:""}</div></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="sm ${p.publie===false?"pri":""}" data-pub="${id}">${p.publie===false?"Publier":"Dépublier"}</button><button class="sm" data-edit="${id}">Modifier</button><button class="sm" data-dispo="${id}">${p.disponible===false?"Remettre":"Épuisé"}</button><button class="sm danger" data-del="${id}">Supprimer</button></div></div>`).join("") : `<p class="muted">Aucun produit.</p>`;
+  const totV = Object.values(VUEDATA).reduce((a, v) => a + ((v && v.total) || 0), 0);
+  const entete = VU_ERR ? `<p class="ko" style="font-size:13px">Statistiques indisponibles (${esc(VU_ERR)}). Ajoutez la règle « vues » dans Firebase > Realtime Database > Règles.</p>` : `<p class="muted" style="margin:0 0 6px">👁 ${totV} vue(s) au total sur tous les produits</p>`;
+  el.innerHTML = entete + (l.length ? l.map(([id,p]) => `<div class="line"><div style="min-width:0"><b>${esc(p.nom)}</b> <span class="${p.publie===false?"ko":"ok"}">${p.publie===false?"● Brouillon":"● Publié"}</span><div class="muted">${fmt(p.prix)} FCFA${uni(p) ? " / " + esc(uni(p)) : ""} · ${esc(p.categorie||"")}${listeCoul(p).length ? " · " + esc(listeCoul(p).join("/")) : ""}${p.video ? " · 🎬" : ""}${p.stock!==""&&p.stock!=null?" · stock "+p.stock:""}</div><div style="font-weight:700;margin-top:2px">👁 ${(VUEDATA[id]&&VUEDATA[id].total)||0} vue(s) · 👤 ${VUEDATA[id]&&VUEDATA[id].gens?Object.keys(VUEDATA[id].gens).length:0} personne(s)</div></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="sm ${p.publie===false?"pri":""}" data-pub="${id}">${p.publie===false?"Publier":"Dépublier"}</button><button class="sm" data-edit="${id}">Modifier</button><button class="sm" data-dispo="${id}">${p.disponible===false?"Remettre":"Épuisé"}</button><button class="sm danger" data-del="${id}">Supprimer</button></div></div>`).join("") : `<p class="muted">Aucun produit.</p>`);
   el.querySelectorAll("[data-pub]").forEach(b => b.onclick = () => db.ref("produits/"+b.dataset.pub+"/publie").set(PRODUITS[b.dataset.pub].publie === false));
   el.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => { EDITION = b.dataset.edit; remplirFormulaire(PRODUITS[EDITION]); scrollTo({top:0,behavior:"smooth"}); });
   el.querySelectorAll("[data-dispo]").forEach(b => b.onclick = () => db.ref("produits/"+b.dataset.dispo+"/disponible").set(PRODUITS[b.dataset.dispo].disponible === false));
-  el.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (confirm("Supprimer définitivement « " + PRODUITS[b.dataset.del].nom + " » ? Cette action est irréversible.")) { db.ref("produits/"+b.dataset.del).remove(); db.ref("avis/"+b.dataset.del).remove().catch(() => {}); } });
+  el.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (confirm("Supprimer définitivement « " + PRODUITS[b.dataset.del].nom + " » ? Cette action est irréversible.")) { { const v = PRODUITS[b.dataset.del].video || ""; if (/firebasestorage\.(googleapis\.com|app)/.test(v)) { try { firebase.storage().refFromURL(v).delete().then(majCapacite).catch(() => {}); } catch(_){} } } db.ref("produits/"+b.dataset.del).remove(); db.ref("avis/"+b.dataset.del).remove().catch(() => {}); } });
 }
 if (location.hash.toLowerCase().includes("admin")) montrer("vAdm");
 majNb(); majCatalogue();
