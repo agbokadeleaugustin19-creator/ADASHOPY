@@ -343,7 +343,8 @@ const alerteErreur = m => { $("erreur").textContent = m; $("erreur").classList.r
 const lsGet = (k,d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch(e){ return d; } };
 const lsSet = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
 
-let PRODUITS = {}, REG = {...DEF_REG}, PANIER = lsGet("panier",{}), CAT = "", EDITION = null, PHOTOS = [], db = null, auth = null;
+let PRODUITS = lsGet("prodCache", {}) || {}, CHARGE = false, REG = {...DEF_REG}, PANIER = lsGet("panier",{}), CAT = "", EDITION = null, PHOTOS = [], db = null, auth = null;
+CHARGE = Object.keys(PRODUITS).length > 0;
 try { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); auth = firebase.auth(); }
 catch(e){ alerteErreur("Firebase : " + e.message); }
 if (location.protocol === "file:") alerteErreur("Ouvrez l’application depuis son adresse en ligne (https://…) pour que la connexion administrateur fonctionne.");
@@ -472,8 +473,9 @@ const ouvrirWa = txt => { location.href = `https://wa.me/${REG.tel}?text=${encod
 $("ctWa").onclick = () => ouvrirWa(REG.ctMsg);
 
 // ===== Catalogue =====
-if (db) db.ref("produits").on("value", s => { PRODUITS = s.val() || {}; majCatalogue(); majAdminListe(); },
-  e => alerteErreur("Lecture du catalogue refusée : " + e.message));
+if (!db) CHARGE = true;
+if (db) db.ref("produits").on("value", s => { PRODUITS = s.val() || {}; CHARGE = true; lsSet("prodCache", PRODUITS); majCatalogue(); majAdminListe(); },
+  e => { CHARGE = true; majCatalogue(); alerteErreur("Lecture du catalogue refusée : " + e.message); });
 const COUL = {rouge:"#e53935",bleu:"#1e88e5","bleu ciel":"#87ceeb","bleu marine":"#1a237e",vert:"#43a047",jaune:"#fdd835",noir:"#111111",blanc:"#ffffff",rose:"#ec407a",orange:"#fb8c00",violet:"#8e24aa",marron:"#6d4c41",gris:"#9e9e9e",beige:"#d7c4a3",or:"#d4af37",argent:"#c0c0c0",turquoise:"#26c6da",bordeaux:"#7b1e3a",kaki:"#8a8a52"};
 const listeCoul = p => String((p && p.couleurs) || "").split(",").map(x => x.trim()).filter(Boolean);
 const puce = c => `<i style="background:${COUL[c.toLowerCase()] || "transparent"}"></i>`;
@@ -608,7 +610,7 @@ function majCatalogue(){
     </div>`; }).join("");
   $("prods").querySelectorAll("[data-det]").forEach(b => b.onclick = () => ouvrirDetail(b.dataset.det));
 
-  $("vide").textContent = liste.length ? "" : "Aucun produit à afficher pour l’instant.";
+  $("vide").textContent = liste.length ? "" : (CHARGE ? "Aucun produit à afficher pour l’instant." : "⏳ Chargement des produits…");
 }
 $("recherche").oninput = majCatalogue;
 
