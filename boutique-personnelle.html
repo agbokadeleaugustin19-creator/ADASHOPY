@@ -126,7 +126,7 @@ html.translated-rtl :is(p,label,h2,h3,textarea,.muted){direction:rtl;text-align:
 
 <!-- ACCUEIL : produits visibles tout de suite -->
 <section id="vAcc">
-  <input id="recherche" placeholder="🔍 Rechercher un produit">
+  <input id="recherche" type="search" name="rech-produit-zq" placeholder="🔍 Rechercher un produit" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" readonly onfocus="this.removeAttribute('readonly')">
   <div class="cat" id="cats"></div>
   <div class="grid" id="prods"></div>
   <p class="muted" id="vide"></p>
@@ -167,9 +167,9 @@ html.translated-rtl :is(p,label,h2,h3,textarea,.muted){direction:rtl;text-align:
 <section id="vAdm" class="hide">
   <div id="loginBox" class="card">
     <h3 style="margin-top:4px">Espace administrateur</h3>
-    <label>E-mail administrateur</label><input id="aMail" type="email" autocomplete="off" autocapitalize="off" placeholder="Saisissez votre adresse e-mail">
+    <label>E-mail administrateur</label><input id="aMail" type="email" name="adm-mail-zq" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Saisissez votre adresse e-mail" readonly onfocus="this.removeAttribute('readonly')">
     <label>Mot de passe</label>
-    <div style="position:relative"><input id="aPwd" type="password" autocomplete="current-password" style="padding-right:50px"><button type="button" class="ic oeil" data-o="aPwd" aria-label="Afficher le mot de passe" style="position:absolute;right:2px;top:4px;font-size:22px">👁️</button></div>
+    <div style="position:relative"><input id="aPwd" type="password" name="adm-pwd-zq" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')" style="padding-right:50px"><button type="button" class="ic oeil" data-o="aPwd" aria-label="Afficher le mot de passe" style="position:absolute;right:2px;top:4px;font-size:22px">👁️</button></div>
     <div id="confBox" class="hide"><label>Confirmer le mot de passe</label>
       <div style="position:relative"><input id="aPwd2" type="password" autocomplete="new-password" style="padding-right:50px"><button type="button" class="ic oeil" data-o="aPwd2" aria-label="Afficher le mot de passe" style="position:absolute;right:2px;top:4px;font-size:22px">👁️</button></div></div>
     <button class="pri" id="aLogin" style="width:100%">Se connecter</button>
@@ -375,6 +375,7 @@ const isAdmin = u => !!(u && u.email && u.email.toLowerCase() === ADMIN_EMAIL.to
 const VUES = ["vAcc","vPan","vCon","vApr","vAdm","vGest"];
 let VUE = "vAcc", PILE = [], QUITTE = false, ARME = false;
 function montrer(v, sansPush){ if (!sansPush && v==="vAdm" && auth && isAdmin(auth.currentUser)) v = "vGest";
+  if ((VUE === "vAdm" || VUE === "vGest") && v !== "vAdm" && v !== "vGest") deconnecterAdmin();
   VUES.forEach(x => $(x).classList.toggle("hide", x !== v)); fermer(); if (v==="vPan") majPanier(); scrollTo(0,0);
   if (!sansPush && v !== VUE) { PILE.push(VUE); if (PILE.length > 20) PILE.shift(); } if (v === "vAcc") PILE.length = 0; VUE = v; }
 /* ===== Bouton Retour du téléphone ===== */
@@ -388,10 +389,12 @@ function fermerCouche(){   /* ferme la couche ouverte la plus haute ; renvoie tr
   if ($("menu").classList.contains("open")) { fermer(); return true; }
   return false;
 }
-function sortirAdmin(){   /* quitter l'espace administrateur = déconnexion automatique */
-  const etait = auth && auth.currentUser; montrer("vAcc", true);
+function viderConnexion(){ ["aMail", "aPwd", "aPwd2"].forEach(id => { const e = $(id); if (e) { e.value = ""; if (id !== "aPwd2") e.setAttribute("readonly", ""); } }); }
+function deconnecterAdmin(){
+  const etait = auth && auth.currentUser; viderConnexion();
   if (etait) { auth.signOut(); const t = $("toast"); t.textContent = "Administrateur déconnecté"; t.classList.remove("hide"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.add("hide"), 2000); }
 }
+function sortirAdmin(){ montrer("vAcc", true); }   /* montrer() se charge de la déconnexion */
 function retourApp(){
   if (fermerCouche()) return;
   if (VUE === "vAdm" || VUE === "vGest") { sortirAdmin(); return; }
@@ -399,9 +402,13 @@ function retourApp(){
   $("quitBox").classList.remove("hide");   /* sur l'accueil : demander confirmation avant de quitter */
 }
 function quitter(){
-  $("quitBox").classList.add("hide"); QUITTE = true; history.back();
-  setTimeout(() => { if (!QUITTE) return; QUITTE = false; history.pushState({garde:true}, ""); try { window.close(); } catch(_){}
-    const t = $("toast"); t.textContent = "Pour quitter, fermez l’application depuis votre téléphone."; t.classList.remove("hide"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.add("hide"), 3500); }, 700);
+  $("quitBox").classList.add("hide"); QUITTE = true;
+  try { window.close(); } catch(_){}
+  history.back();
+  setTimeout(() => {   /* si le téléphone n'a pas fermé l'application : la garde est retirée, le prochain Retour quitte vraiment */
+    if (!QUITTE) return; QUITTE = false; ARME = false;
+    const t = $("toast"); t.textContent = "Appuyez encore une fois sur Retour pour quitter"; t.classList.remove("hide"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.add("hide"), 4000);
+  }, 600);
 }
 function armerRetour(){   /* à la première touche : on crée une entrée de garde (exigé par Chrome pour intercepter Retour) */
   if (ARME) return; ARME = true; history.replaceState({base:true}, ""); history.pushState({garde:true}, "");
@@ -409,7 +416,7 @@ function armerRetour(){   /* à la première touche : on crée une entrée de ga
 ["pointerdown", "touchstart", "keydown", "click"].forEach(ev => addEventListener(ev, armerRetour, {passive:true}));
 window.addEventListener("popstate", () => {
   if (!ARME) return;
-  if (QUITTE) { history.back(); return; }     /* 2e retour : on sort vraiment */
+  if (QUITTE) { try { window.close(); } catch(_){} history.back(); return; }     /* on remonte jusqu'à la sortie */
   history.pushState({garde:true}, ""); retourApp();
 });
 $("quitNon").onclick = () => $("quitBox").classList.add("hide"); $("quitOui").onclick = quitter;
@@ -737,14 +744,14 @@ document.querySelectorAll("#admBox [data-t]").forEach(b => b.onclick = () => {
   ["tProd","tImp","tThe","tCon","tReg"].forEach(t => $(t).classList.toggle("hide", t !== b.dataset.t));
   document.querySelectorAll("#admBox [data-t]").forEach(x => x.classList.toggle("on", x === b));
 });
-function afficherEtat(u){ const a = isAdmin(u); if (a) { ecouterVues(); majCapacite(); }
+function afficherEtat(u){ const a = isAdmin(u); if (!u) viderConnexion(); if (a) { ecouterVues(); majCapacite(); }
   if (a && !$("vAdm").classList.contains("hide")) { montrer("vGest", true); }
   if (!u && !$("vGest").classList.contains("hide")) montrer("vAdm");
   $("loginBox").classList.toggle("hide", !!u); $("verifBox").classList.add("hide"); $("admBox").classList.toggle("hide", !a); $("verifBan").classList.toggle("hide", !(a && !u.emailVerified)); }
 const pasAuth = () => { $("aErr").textContent = "Connexion indisponible : ouvrez l’application depuis son adresse https://."; };
 $("aLogin").onclick = async () => { $("aErr").textContent = ""; if (!auth) return pasAuth();
   $("aErr").innerHTML = `<span class="muted">Connexion en cours…</span>`;
-  try { await Promise.race([auth.signInWithEmailAndPassword($("aMail").value.trim(), $("aPwd").value), new Promise((_,ko) => setTimeout(() => ko({code:"delai"}), 15000))]); $("aErr").textContent = ""; } catch(e){ $("aErr").textContent = messageAuth(e); } };
+  try { await Promise.race([auth.signInWithEmailAndPassword($("aMail").value.trim(), $("aPwd").value), new Promise((_,ko) => setTimeout(() => ko({code:"delai"}), 15000))]); $("aErr").textContent = ""; $("aPwd").value = ""; } catch(e){ $("aErr").textContent = messageAuth(e); } };
 $("aReset").onclick = async () => { if (!auth) return pasAuth(); const m = $("aMail").value.trim(); if (!m) { $("aErr").textContent = "Saisissez d’abord votre e-mail."; return; }
   try { await auth.sendPasswordResetEmail(m); $("aErr").innerHTML = `<span class="ok">E-mail de réinitialisation envoyé.</span>`; } catch(e){ $("aErr").textContent = messageAuth(e); } };
 $("aCreer").onclick = async () => { $("aErr").textContent = ""; if (!auth) return pasAuth();
@@ -943,6 +950,14 @@ majNb(); majCatalogue();
   $("langBtn").onclick = () => { $("langQ").value = ""; afficher(""); $("langBox").classList.remove("hide"); };
   $("langQ").oninput = () => afficher($("langQ").value);
   $("langBox").onclick = e => { if (e.target.id === "langBox") $("langBox").classList.add("hide"); };
+})();
+
+/* ===== La recherche et la connexion ne doivent jamais être pré-remplies ===== */
+(function(){
+  const nettoyer = () => { const r = $("recherche"); if (r && document.activeElement !== r && r.value) { r.value = ""; try { majCatalogue(); } catch(_){} } };
+  [150, 600, 1500].forEach(ms => setTimeout(nettoyer, ms));
+  addEventListener("pageshow", () => { nettoyer(); viderConnexion(); });
+  ["recherche", "aMail", "aPwd"].forEach(id => ["pointerdown", "touchstart"].forEach(ev => $(id).addEventListener(ev, e => e.currentTarget.removeAttribute("readonly"), {passive:true})));
 })();
 </script>
 </body>
