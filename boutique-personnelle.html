@@ -95,6 +95,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--bgimg
 </header>
 <div id="ov" class="hide"></div>
 <div id="toast" class="hide" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card);color:var(--tx);border:1px solid var(--gold);border-radius:999px;padding:8px 16px;z-index:50;font-weight:700"></div>
+<div id="quitBox" class="hide" style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:20px"><div style="background:var(--card);color:var(--tx);border:1px solid var(--gold);border-radius:16px;padding:20px;max-width:340px;width:100%;text-align:center"><b style="font-size:17px">Quitter l’application ?</b><p style="margin:10px 0 16px">Voulez-vous vraiment quitter l’application ?</p><div style="display:flex;gap:10px"><button type="button" id="quitNon" style="flex:1;background:var(--btn);color:var(--btnt)">Rester</button><button type="button" id="quitOui" style="flex:1">Quitter</button></div></div></div>
 <div id="instBox" class="hide"><div><b style="font-size:17px">📲 Installer l’application</b><div id="instTxt"></div><button type="button" id="instOk" style="width:100%">J’ai compris</button></div></div>
 <div id="imgBox" class="hide" style="position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:90;display:flex;align-items:center;justify-content:center"><button type="button" id="imgClose" aria-label="Fermer" style="position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;padding:0;border-radius:50%;font-size:22px;background:rgba(0,0,0,.6);color:#fff;border-color:#fff">✕</button><img id="imgBig" alt="" style="max-width:100%;max-height:100%;object-fit:contain"></div>
 <div id="detBox" class="hide" style="position:fixed;inset:0;background:var(--bg);z-index:60;overflow-y:auto">
@@ -365,12 +366,46 @@ const isAdmin = u => !!(u && u.email && u.email.toLowerCase() === ADMIN_EMAIL.to
 
 // ===== Navigation (menu à gauche) =====
 const VUES = ["vAcc","vPan","vCon","vApr","vAdm","vGest"];
-let VUE = "vAcc"; history.replaceState({v:"vAcc"}, "");
+let VUE = "vAcc", PILE = [], QUITTE = false, ARME = false;
 function montrer(v, sansPush){ if (!sansPush && v==="vAdm" && auth && isAdmin(auth.currentUser)) v = "vGest";
   VUES.forEach(x => $(x).classList.toggle("hide", x !== v)); fermer(); if (v==="vPan") majPanier(); scrollTo(0,0);
-  if (!sansPush && v !== VUE) history.pushState({v}, ""); VUE = v; }
-window.addEventListener("popstate", e => montrer((e.state && e.state.v) || "vAcc", true));
-function retour(){ if (VUE==="vAdm" || VUE==="vGest") montrer("vAcc"); else if (history.length > 1 && history.state && VUE!=="vAcc") history.back(); else montrer("vAcc"); }
+  if (!sansPush && v !== VUE) { PILE.push(VUE); if (PILE.length > 20) PILE.shift(); } if (v === "vAcc") PILE.length = 0; VUE = v; }
+/* ===== Bouton Retour du téléphone ===== */
+function fermerCouche(){   /* ferme la couche ouverte la plus haute ; renvoie true si une couche a été fermée */
+  const ouvert = id => $(id) && !$(id).classList.contains("hide");
+  if (ouvert("quitBox")) { $("quitBox").classList.add("hide"); return true; }
+  if (ouvert("instBox")) { $("instBox").classList.add("hide"); return true; }
+  if (ouvert("imgBox")) { $("imgBox").classList.add("hide"); return true; }
+  if (ouvert("detBox")) { fermerDet(); return true; }
+  if ($("menu").classList.contains("open")) { fermer(); return true; }
+  return false;
+}
+function sortirAdmin(){   /* quitter l'espace administrateur = déconnexion automatique */
+  const etait = auth && auth.currentUser; montrer("vAcc", true);
+  if (etait) { auth.signOut(); const t = $("toast"); t.textContent = "Administrateur déconnecté"; t.classList.remove("hide"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.add("hide"), 2000); }
+}
+function retourApp(){
+  if (fermerCouche()) return;
+  if (VUE === "vAdm" || VUE === "vGest") { sortirAdmin(); return; }
+  if (VUE !== "vAcc") { montrer(PILE.pop() || "vAcc", true); return; }
+  $("quitBox").classList.remove("hide");   /* sur l'accueil : demander confirmation avant de quitter */
+}
+function quitter(){
+  $("quitBox").classList.add("hide"); QUITTE = true; history.back();
+  setTimeout(() => { if (!QUITTE) return; QUITTE = false; history.pushState({garde:true}, ""); try { window.close(); } catch(_){}
+    const t = $("toast"); t.textContent = "Pour quitter, fermez l’application depuis votre téléphone."; t.classList.remove("hide"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.add("hide"), 3500); }, 700);
+}
+function armerRetour(){   /* à la première touche : on crée une entrée de garde (exigé par Chrome pour intercepter Retour) */
+  if (ARME) return; ARME = true; history.replaceState({base:true}, ""); history.pushState({garde:true}, "");
+}
+["pointerdown", "touchstart", "keydown", "click"].forEach(ev => addEventListener(ev, armerRetour, {passive:true}));
+window.addEventListener("popstate", () => {
+  if (!ARME) return;
+  if (QUITTE) { history.back(); return; }     /* 2e retour : on sort vraiment */
+  history.pushState({garde:true}, ""); retourApp();
+});
+$("quitNon").onclick = () => $("quitBox").classList.add("hide"); $("quitOui").onclick = quitter;
+function retour(){ if (VUE==="vAdm" || VUE==="vGest") sortirAdmin(); else montrer(PILE.pop() || "vAcc", true); }
 VUES.slice(1).forEach(id => { const b = document.createElement("button"); b.className = "sm"; b.style.marginBottom = "10px"; b.textContent = "← Retour"; b.onclick = retour; $(id).prepend(b); });
 function fermer(){ $("menu").classList.remove("open"); $("ov").classList.add("hide"); }
 $("burger").onclick = () => { $("menu").classList.add("open"); $("ov").classList.remove("hide"); };
@@ -573,7 +608,8 @@ function majSlide(i){
   if (v && p.autoplay) montrerVideo(p, true);
   DET.last = i; $("detBody").querySelectorAll(".dots i").forEach((d, k) => d.classList.toggle("on", k === i));
 }
-$("detClose").onclick = () => { $("detBox").classList.add("hide"); $("detBody").innerHTML = ""; DET = null; if (AV_REF) { AV_REF.off(); AV_REF = null; } };
+function fermerDet(){ $("detBox").classList.add("hide"); $("detBody").innerHTML = ""; DET = null; if (AV_REF) { AV_REF.off(); AV_REF = null; } }
+$("detClose").onclick = fermerDet;
 let AV_REF = null, AV_PH = "";
 function majAvMini(){ $("avMini").innerHTML = AV_PH ? `<div class="mini"><img src="${AV_PH}" alt=""><b id="avX">✕</b></div>` : ""; if (AV_PH) $("avX").onclick = () => { AV_PH = ""; majAvMini(); }; }
 function voirImg(src){ $("imgBig").src = src; $("imgBox").classList.remove("hide"); }
@@ -694,7 +730,7 @@ document.querySelectorAll("#admBox [data-t]").forEach(b => b.onclick = () => {
   document.querySelectorAll("#admBox [data-t]").forEach(x => x.classList.toggle("on", x === b));
 });
 function afficherEtat(u){ const a = isAdmin(u); if (a) { ecouterVues(); majCapacite(); }
-  if (a && !$("vAdm").classList.contains("hide")) { montrer("vGest", true); history.replaceState({v:"vGest"}, ""); }
+  if (a && !$("vAdm").classList.contains("hide")) { montrer("vGest", true); }
   if (!u && !$("vGest").classList.contains("hide")) montrer("vAdm");
   $("loginBox").classList.toggle("hide", !!u); $("verifBox").classList.add("hide"); $("admBox").classList.toggle("hide", !a); $("verifBan").classList.toggle("hide", !(a && !u.emailVerified)); }
 const pasAuth = () => { $("aErr").textContent = "Connexion indisponible : ouvrez l’application depuis son adresse https://."; };
