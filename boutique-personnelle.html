@@ -84,17 +84,24 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--bgimg
 #thPrev img{width:100%;max-height:140px;object-fit:cover;border-radius:10px;margin-top:8px;display:block}
 #instBar{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:8px 10px;border:1px solid var(--gold);border-radius:14px;background:var(--card);font-size:13px}#instBar span{flex:1}#instBar button{padding:7px 12px;font-size:13px}
 #instBox{position:fixed;inset:0;z-index:95;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center}#instBox>div{background:var(--card);color:var(--tx);border:1px solid var(--gold);border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));width:100%;max-width:520px}#instBox ol{padding-left:20px;line-height:1.6;margin:10px 0}
+.goog-te-banner-frame,.goog-te-banner-frame.skiptranslate,iframe.skiptranslate,.VIpgJd-ZVi9od-ORHb-OEVmcd,.VIpgJd-ZVi9od-aZ2wEe-wOHMyf,#goog-gt-tt,.goog-tooltip{display:none!important}
+html body{top:0!important}.goog-text-highlight{background:none!important;box-shadow:none!important}
+html.translated-rtl :is(p,label,h2,h3,textarea,.muted){direction:rtl;text-align:right}
+#langList button{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;margin:0 0 6px;padding:10px 14px;border-radius:12px;background:var(--in);color:var(--tx);border:1px solid var(--bd);font-weight:600}
+#langList button.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}#langList small{opacity:.6;font-weight:400}
 #pied{margin-top:auto;text-align:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--bd);color:var(--tx);opacity:.7;font-size:10px;line-height:1.2;background:var(--bg)}#pied b{color:var(--gold);font-weight:700}
 </style>
 </head>
 <body>
 <header>
   <button class="ic" id="burger" aria-label="Menu">☰</button>
-  <b id="nomBoutique">ADASHOPY</b>
-  <div style="display:flex;align-items:center"><button class="ic" id="modeBtn" aria-label="Changer l’apparence" style="font-size:22px">🌗</button><button class="ic" id="goPan" aria-label="Panier" style="font-size:20px">🛒 <span id="nbPan">0</span></button></div>
+  <b id="nomBoutique" class="notranslate">ADASHOPY</b>
+  <div style="display:flex;align-items:center"><button class="ic notranslate" id="langBtn" aria-label="Langue" style="font-size:22px">🌐</button><button class="ic" id="modeBtn" aria-label="Changer l’apparence" style="font-size:22px">🌗</button><button class="ic" id="goPan" aria-label="Panier" style="font-size:20px">🛒 <span id="nbPan">0</span></button></div>
 </header>
 <div id="ov" class="hide"></div>
 <div id="toast" class="hide" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card);color:var(--tx);border:1px solid var(--gold);border-radius:999px;padding:8px 16px;z-index:50;font-weight:700"></div>
+<div id="google_translate_element" style="position:absolute;left:-9999px;top:0;width:1px;height:1px;overflow:hidden"></div>
+<div id="langBox" class="hide notranslate" translate="no" style="position:fixed;inset:0;z-index:98;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center"><div style="background:var(--card);color:var(--tx);border:1px solid var(--gold);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:82vh;display:flex;flex-direction:column;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px))"><b style="font-size:17px">🌐 Langue / Language</b><input id="langQ" placeholder="🔎 Rechercher / Search" autocomplete="off" style="margin:10px 0"><div id="langList" style="overflow-y:auto;flex:1"></div></div></div>
 <div id="quitBox" class="hide" style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:20px"><div style="background:var(--card);color:var(--tx);border:1px solid var(--gold);border-radius:16px;padding:20px;max-width:340px;width:100%;text-align:center"><b style="font-size:17px">Quitter l’application ?</b><p style="margin:10px 0 16px">Voulez-vous vraiment quitter l’application ?</p><div style="display:flex;gap:10px"><button type="button" id="quitNon" style="flex:1;background:var(--btn);color:var(--btnt)">Rester</button><button type="button" id="quitOui" style="flex:1">Quitter</button></div></div></div>
 <div id="instBox" class="hide"><div><b style="font-size:17px">📲 Installer l’application</b><div id="instTxt"></div><button type="button" id="instOk" style="width:100%">J’ai compris</button></div></div>
 <div id="imgBox" class="hide" style="position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:90;display:flex;align-items:center;justify-content:center"><button type="button" id="imgClose" aria-label="Fermer" style="position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;padding:0;border-radius:50%;font-size:22px;background:rgba(0,0,0,.6);color:#fff;border-color:#fff">✕</button><img id="imgBig" alt="" style="max-width:100%;max-height:100%;object-fit:contain"></div>
@@ -374,6 +381,7 @@ function montrer(v, sansPush){ if (!sansPush && v==="vAdm" && auth && isAdmin(au
 function fermerCouche(){   /* ferme la couche ouverte la plus haute ; renvoie true si une couche a été fermée */
   const ouvert = id => $(id) && !$(id).classList.contains("hide");
   if (ouvert("quitBox")) { $("quitBox").classList.add("hide"); return true; }
+  if (ouvert("langBox")) { $("langBox").classList.add("hide"); return true; }
   if (ouvert("instBox")) { $("instBox").classList.add("hide"); return true; }
   if (ouvert("imgBox")) { $("imgBox").classList.add("hide"); return true; }
   if (ouvert("detBox")) { fermerDet(); return true; }
@@ -905,6 +913,36 @@ majNb(); majCatalogue();
     else { if (parti && Date.now() - parti > ABSENCE_MIN * 60000) sortir(); parti = 0; armer(); }
   });
   auth.onAuthStateChanged(armer);
+})();
+
+/* ===== Langues (traduction de toute la page) ===== */
+(function(){
+  const LANGUES = [["fr","Français"],["en","English"],["es","Español"],["pt","Português"],["ar","العربية"],["de","Deutsch"],["it","Italiano"],["tr","Türkçe"],["ru","Русский"],["zh-CN","中文 (简体)"],["zh-TW","中文 (繁體)"],["ja","日本語"],["ko","한국어"],["hi","हिन्दी"],["sw","Kiswahili"],["yo","Yorùbá"],["ha","Hausa"],["ig","Igbo"],["zu","isiZulu"],["xh","isiXhosa"],["sn","chiShona"],["st","Sesotho"],["ny","Chichewa"],["mg","Malagasy"],["so","Soomaali"],["am","አማርኛ"],["rw","Kinyarwanda"],
+    ["af","Afrikaans"],["sq","Shqip"],["hy","Հայերեն"],["az","Azərbaycan"],["eu","Euskara"],["be","Беларуская"],["bn","বাংলা"],["bs","Bosanski"],["bg","Български"],["ca","Català"],["ceb","Cebuano"],["co","Corsu"],["hr","Hrvatski"],["cs","Čeština"],["da","Dansk"],["nl","Nederlands"],["eo","Esperanto"],["et","Eesti"],["fi","Suomi"],["fy","Frysk"],["gl","Galego"],["ka","ქართული"],["el","Ελληνικά"],["gu","ગુજરાતી"],["ht","Kreyòl ayisyen"],["haw","ʻŌlelo Hawaiʻi"],["iw","עברית"],["hmn","Hmoob"],["hu","Magyar"],["is","Íslenska"],["id","Bahasa Indonesia"],["ga","Gaeilge"],["jw","Basa Jawa"],["kn","ಕನ್ನಡ"],["kk","Қазақша"],["km","ខ្មែរ"],["ku","Kurdî"],["ky","Кыргызча"],["lo","ລາວ"],["la","Latina"],["lv","Latviešu"],["lt","Lietuvių"],["lb","Lëtzebuergesch"],["mk","Македонски"],["ms","Bahasa Melayu"],["ml","മലയാളം"],["mt","Malti"],["mi","Māori"],["mr","मराठी"],["mn","Монгол"],["my","မြန်မာ"],["ne","नेपाली"],["no","Norsk"],["or","ଓଡ଼ିଆ"],["ps","پښتو"],["fa","فارسی"],["pl","Polski"],["pa","ਪੰਜਾਬੀ"],["ro","Română"],["sm","Gagana Samoa"],["gd","Gàidhlig"],["sr","Српски"],["sd","سنڌي"],["si","සිංහල"],["sk","Slovenčina"],["sl","Slovenščina"],["su","Basa Sunda"],["sv","Svenska"],["tl","Filipino"],["tg","Тоҷикӣ"],["ta","தமிழ்"],["tt","Татарча"],["te","తెలుగు"],["th","ไทย"],["tk","Türkmen"],["uk","Українська"],["ur","اردو"],["ug","ئۇيغۇرچە"],["uz","Oʻzbek"],["vi","Tiếng Việt"],["cy","Cymraeg"],["yi","ייִדיש"]];
+  const cookie = l => { const exp = "expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    if (l === "fr") { document.cookie = `googtrans=;${exp};path=/`; document.cookie = `googtrans=;${exp};path=/;domain=${location.hostname}`; }
+    else document.cookie = `googtrans=/fr/${l};path=/`; };
+  const courante = lsGet("lang", "fr");
+  cookie(courante);
+  if (courante !== "fr") {                       /* le traducteur n'est chargé que si une autre langue est choisie */
+    window.initTrad = () => { try { new google.translate.TranslateElement({pageLanguage: "fr", autoDisplay: false}, "google_translate_element"); } catch(_){} };
+    const sc = document.createElement("script"); sc.async = true; sc.src = "https://translate.google.com/translate_a/element.js?cb=initTrad";
+    sc.onerror = () => { const t = $("toast"); t.textContent = "Traduction indisponible (vérifiez la connexion)"; t.classList.remove("hide"); setTimeout(() => t.classList.add("hide"), 3500); };
+    document.head.appendChild(sc);
+  }
+  const nom = (LANGUES.find(x => x[0] === courante) || [])[1];
+  if (nom) $("langBtn").title = nom;
+  function afficher(q){
+    q = (q || "").trim().toLowerCase();
+    $("langList").innerHTML = LANGUES.filter(([c, n]) => !q || n.toLowerCase().includes(q) || c.toLowerCase().includes(q))
+      .map(([c, n]) => `<button type="button" data-l="${c}" class="${c === courante ? "on" : ""}">${n}<small>${c === "fr" ? "original" : c}</small></button>`).join("") || `<p class="muted">—</p>`;
+    $("langList").querySelectorAll("button").forEach(b => b.onclick = () => {
+      const l = b.dataset.l; $("langBox").classList.add("hide"); if (l === courante) return;
+      lsSet("lang", l); cookie(l); location.reload(); });
+  }
+  $("langBtn").onclick = () => { $("langQ").value = ""; afficher(""); $("langBox").classList.remove("hide"); };
+  $("langQ").oninput = () => afficher($("langQ").value);
+  $("langBox").onclick = e => { if (e.target.id === "langBox") $("langBox").classList.add("hide"); };
 })();
 </script>
 </body>
